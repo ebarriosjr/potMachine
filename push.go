@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,8 +8,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/cheggaaa/pb/v3"
 )
 
 func pushPot(tag *string) {
@@ -59,22 +56,6 @@ func pushPot(tag *string) {
 	if response.StatusCode != 201 {
 		fmt.Println("ERROR: Error executing command with http response: ", response.StatusCode)
 	}
-}
-
-func progressBar(buffer *bytes.Buffer) {
-	count := buffer.Len()
-	total := count
-	// create and start new bar
-	bar := pb.SuperSimple.Start(count)
-
-	var current int
-	for i := 0; i < count; i++ {
-		current = total - buffer.Len()
-		bar.SetCurrent(int64(current))
-		time.Sleep(time.Second)
-	}
-	bar.Finish()
-
 }
 
 func sendPutRequest(url string, filename string, filetype string) *http.Response {
