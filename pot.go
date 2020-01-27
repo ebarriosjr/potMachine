@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,7 +16,8 @@ func redirectToPot(args []string) {
 		configCmd := exec.Command("bash", "-c", createConfigCmd)
 
 		if err := configCmd.Start(); err != nil {
-			log.Fatalf("cmd.Start: %v", err)
+			fmt.Println("cmd.Start: ", err)
+			return
 		}
 
 		if err := configCmd.Wait(); err != nil {
@@ -33,7 +33,8 @@ func redirectToPot(args []string) {
 					os.Exit(1)
 				}
 			} else {
-				log.Fatalf("cmd.Wait: %v", err)
+				fmt.Println("cmd.Wait: ", err)
+				return
 			}
 		}
 

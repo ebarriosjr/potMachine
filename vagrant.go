@@ -8,7 +8,6 @@ import (
 	"os/user"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/bmatcuk/go-vagrant"
 )
 
@@ -93,24 +92,24 @@ end`
 		//Write Vagrantfile
 		err = ioutil.WriteFile(vagrantFilePath, []byte(defaultVagrant), 0664)
 		if err != nil {
-			log.Error("Error writting file to disk with err: \n", err)
+			fmt.Println("ERROR: Error writting file to disk with err: \n", err)
 			return
 		}
 	}
 
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
-		log.Error("Error: No enviroment detected.")
+		fmt.Println("ERROR: Error: No enviroment detected.")
 		return
 	}
 
 	upCmd := client.Up()
 	upCmd.Verbose = verbose
 	if err := upCmd.Run(); err != nil {
-		log.Error("Error running vagrant with err: ", err)
+		fmt.Println("ERROR: Error running vagrant with err: ", err)
 	}
 	if upCmd.Error != nil {
-		log.Error("Upcmd error: ", err)
+		fmt.Println("ERROR: Upcmd error: ", err)
 	}
 
 	if vmType == "nomad" {
@@ -141,9 +140,7 @@ func redirectToVagrant(args []string) {
 	}
 
 	arguments := strings.Join(args, " ")
-	//termCmd := "vagrant ssh " + vagrantID + " -c 'sudo " + arguments + "' 2>/dev/null"
 	termCmd := "ssh -F " + configSSHFile + " potMachine sudo " + arguments
-	//log.Info("Command: ", termCmd)
 
 	cmd := exec.Command("bash", "-c", termCmd)
 	cmd.Stdout = os.Stdout
@@ -170,17 +167,17 @@ func destroyVagrant(verbose bool) {
 
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
-		log.Error("Error: No enviroment detected.")
+		fmt.Println("ERROR: Error: No enviroment detected.")
 		return
 	}
 	destroyCmd := client.Destroy()
 	destroyCmd.Verbose = verbose
 	if err := destroyCmd.Run(); err != nil {
-		log.Error("Error running vagrant with err: ", err)
+		fmt.Println("ERROR: Error running vagrant with err: ", err)
 		return
 	}
 	if destroyCmd.Error != nil {
-		log.Error("Upcmd error: ", err)
+		fmt.Println("ERROR: Upcmd error: ", err)
 		return
 	}
 
@@ -199,7 +196,7 @@ func getVagrantID() string {
 		//Not a vagrant machine.
 		dat, err := ioutil.ReadFile(vagrantDirPath + ".vagrant/machines/potMachine/virtualbox/index_uuid")
 		if err != nil {
-			log.Error("Unable to read index_uuid file with err: \n", err)
+			fmt.Println("ERROR: Unable to read index_uuid file with err: \n", err)
 			return ""
 		}
 		return string(dat[:6])
@@ -211,7 +208,7 @@ func getVagrantID() string {
 func getVagrantDirPath() string {
 	homeDir := getUserHome()
 	if homeDir == "" {
-		log.Error("Error getting user home directory info...")
+		fmt.Println("ERROR: Error getting user home directory info...")
 		return ""
 	}
 
@@ -226,10 +223,9 @@ func getVagrantDirPath() string {
 func getUserHome() string {
 	usr, err := user.Current()
 	if err != nil {
-		log.Fatal("Error getting current user info with err: \n", err)
+		fmt.Println("Error getting current user info with err: \n", err)
 		return ""
 	}
-	//log.Info("Home path: ", usr.HomeDir)
 	return usr.HomeDir
 }
 
@@ -237,17 +233,17 @@ func startVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
-		log.Error("Error starting potMachine")
+		fmt.Println("ERROR: Error starting potMachine")
 		return
 	}
 
 	upCmd := client.Up()
 	upCmd.Verbose = verbose
 	if err := upCmd.Run(); err != nil {
-		log.Error("Error running vagrant with err: ", err)
+		fmt.Println("ERROR: Error running vagrant with err: ", err)
 	}
 	if upCmd.Error != nil {
-		log.Error("Startcmd error: ", err)
+		fmt.Println("ERROR: Startcmd error: ", err)
 	}
 }
 
@@ -255,17 +251,17 @@ func stopVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
-		log.Error("Error stoping potMachine")
+		fmt.Println("ERROR: Error stoping potMachine")
 		return
 	}
 
 	upCmd := client.Halt()
 	upCmd.Verbose = verbose
 	if err := upCmd.Run(); err != nil {
-		log.Error("Error running vagrant with err: ", err)
+		fmt.Println("ERROR: Error running vagrant with err: ", err)
 	}
 	if upCmd.Error != nil {
-		log.Error("Stopcmd error: ", err)
+		fmt.Println("ERROR: Stopcmd error: ", err)
 	}
 }
 
@@ -273,16 +269,16 @@ func reloadVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
-		log.Error("Error reloading potMachine")
+		fmt.Println("ERROR: Error reloading potMachine")
 		return
 	}
 
 	upCmd := client.Reload()
 	upCmd.Verbose = verbose
 	if err := upCmd.Run(); err != nil {
-		log.Error("Error running vagrant with err: ", err)
+		fmt.Println("ERROR: Error running vagrant with err: ", err)
 	}
 	if upCmd.Error != nil {
-		log.Error("Stopcmd error: ", err)
+		fmt.Println("ERROR: Stopcmd error: ", err)
 	}
 }

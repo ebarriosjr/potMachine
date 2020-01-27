@@ -10,14 +10,13 @@ import (
 	"strings"
 
 	randomdata "github.com/Pallinder/go-randomdata"
-	log "github.com/Sirupsen/logrus"
 )
 
 func buildPot(tag *string) {
 	vagrantDirPath := getVagrantDirPath()
 	potFile, err := os.Open("./Potfile")
 	if err != nil {
-		log.Error("No Potfile on path")
+		fmt.Println("ERROR: No Potfile on path")
 		return
 	}
 	defer potFile.Close()
@@ -58,20 +57,20 @@ func buildPot(tag *string) {
 	}
 
 	if len(potMap["FROM"]) == 0 {
-		log.Error("FROM can't be empty...")
+		fmt.Println("ERROR: FROM can't be empty...")
 		return
 	}
 
 	if len(baseCommand) == 0 {
-		log.Error("CMD can't be emtpy...")
+		fmt.Println("ERROR: CMD can't be emtpy...")
 		return
 	}
 
 	if len(potMap["NAME"]) == 0 {
-		log.Info("==> NAME is empty, generating a random name...")
+		fmt.Println("==> NAME is empty, generating a random name...")
 		randomName := randomdata.SillyName()
 		potMap["NAME"] = []string{randomName}
-		log.Info("NAME: ", potMap["NAME"][0])
+		fmt.Println("NAME: ", potMap["NAME"][0])
 	}
 
 	//Initialize run.sh file
@@ -106,7 +105,7 @@ func buildPot(tag *string) {
 		newFlavorByte := []byte(fileContent)
 		err := ioutil.WriteFile(runFile, newFlavorByte, 0755)
 		if err != nil {
-			log.Error("Error writting file to disk!")
+			fmt.Println("ERROR: Error writting file to disk!")
 			return
 		}
 
@@ -118,7 +117,7 @@ func buildPot(tag *string) {
 		err = os.Remove(runFile)
 
 		if err != nil {
-			log.Error("Error removing file run.sh with err: ", err)
+			fmt.Println("ERROR: Error removing file run.sh with err: ", err)
 			return
 		}
 	}
@@ -155,7 +154,7 @@ func buildPot(tag *string) {
 			// mkdir .pot/copy --- os.Mkdir()
 			err := os.Mkdir(copyDirPath, 0775)
 			if err != nil {
-				log.Error("Error creating intermediate directory for copy command...")
+				fmt.Println("ERROR: Error creating intermediate directory for copy command...")
 				return
 			}
 
@@ -173,7 +172,8 @@ func buildPot(tag *string) {
 			copyCmd := "cp -r " + source + " " + copyDirPath
 			_, err = exec.Command("bash", "-c", copyCmd).Output()
 			if err != nil {
-				log.Error("Error copying files...")
+				fmt.Println("ERROR: Error copying files...")
+				return
 			}
 
 			var origin string
@@ -234,7 +234,8 @@ func buildPot(tag *string) {
 	//redirectToPot([]string{startCmd})
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		fmt.Println("Error: ", err)
+		return
 	}
 
 	if *tag != "" {

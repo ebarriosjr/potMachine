@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -31,7 +30,7 @@ func loginPot(server []string, user *string, pass *string, inline *bool) {
 		bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 		fmt.Println("")
 		if err != nil {
-			log.Error("Error inputing password with err: ", err)
+			fmt.Println("Error: Error inputing password with err: ", err)
 			return
 		}
 		password := string(bytePassword)
@@ -58,7 +57,7 @@ func loginPot(server []string, user *string, pass *string, inline *bool) {
 
 	req, err := http.NewRequest("GET", prefixServer, nil)
 	if err != nil {
-		log.Error("Unable to create request with err: ", err)
+		fmt.Println("Error: Unable to create request with err: ", err)
 		return
 	}
 
@@ -66,12 +65,12 @@ func loginPot(server []string, user *string, pass *string, inline *bool) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error("Unable to comunicate with endpoint with err: \n", err)
+		fmt.Println("Error: Unable to comunicate with endpoint with err: \n", err)
 		return
 	}
 	homeDir := getUserHome()
 	if homeDir == "" {
-		log.Error("Error getting user home directory info..")
+		fmt.Println("Error: Error getting user home directory info..")
 		return
 	}
 	configFilePath := homeDir + "/.pot/config.json"
@@ -84,7 +83,7 @@ func loginPot(server []string, user *string, pass *string, inline *bool) {
 			//File exists
 			dat, err := ioutil.ReadFile(configFilePath)
 			if err != nil {
-				log.Error("Unable to read config.json file with err: \n", err)
+				fmt.Println("Error: Unable to read config.json file with err: \n", err)
 				return
 			}
 			err = json.Unmarshal(dat, &configFile)
@@ -103,15 +102,15 @@ func loginPot(server []string, user *string, pass *string, inline *bool) {
 		newFlavorByte, _ := json.MarshalIndent(configFile, "", "    ")
 		err = ioutil.WriteFile(configFilePath, newFlavorByte, 0644)
 		if err != nil {
-			log.Error("Error writting file to disk with err: \n", err)
+			fmt.Println("Error: Error writting file to disk with err: \n", err)
 			return
 		}
 
 	} else if resp.StatusCode == 401 {
-		log.Error("Not Authorized")
+		fmt.Println("Error: Not Authorized")
 		return
 	} else {
-		log.Error("Error reaching server with err: \n", err)
+		fmt.Println("Error: Error reaching server with err: \n", err)
 		return
 	}
 }
