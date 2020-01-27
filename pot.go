@@ -1,0 +1,82 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"strings"
+	"syscall"
+)
+
+func redirectToPot(args []string) {
+	vagrantDirPath := getVagrantDirPath()
+	configSSHFile := vagrantDirPath + "sshConfig"
+	if _, err := os.Stat(configSSHFile); os.IsNotExist(err) {
+		createConfigCmd := "cd " + vagrantDirPath + "&& vagrant ssh-config > " + configSSHFile
+		configCmd := exec.Command("bash", "-c", createConfigCmd)
+
+		if err := configCmd.Start(); err != nil {
+			log.Fatalf("cmd.Start: %v", err)
+		}
+
+		if err := configCmd.Wait(); err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				// The program has exited with an exit code != 0
+
+				if _, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+					fmt.Println("No enviroment set on this machine.\nPlease run pot machine init [virtualbox/libvirt/nomad]")
+					err = os.Remove(vagrantDirPath + "sshConfig")
+					if err != nil {
+						fmt.Println("Error removing ssConfig file from ", vagrantDirPath)
+					}
+					os.Exit(1)
+				}
+			} else {
+				log.Fatalf("cmd.Wait: %v", err)
+			}
+		}
+
+	}
+
+	arguments := strings.Join(args, " ")
+
+	termCmd := "ssh -t -q -F " + configSSHFile + " potMachine sudo pot " + arguments
+
+	cmd := exec.Command("bash", "-c", termCmd)
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	cmd.Wait()
+
+	if err != nil {
+		if err.Error() == "255" {
+			fmt.Println("==> Not able to connect to the potMachine.")
+			fmt.Println("==> Maybe the potMachine is not runnig.")
+			fmt.Println("==> Try: \"pot machine start\" or \"pot machine init -h\" ")
+		}
+	}
+}
+
+func createFlavour(flavour string) {
+	basePath := getVagrantDirPath()
+	flavourPath := basePath + flavour
+
+	cmd := exec.Command(config.Editor, flavourPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Error running Editor with err: ", err)
+	}
+
+	flavourVagrantPath := "/vagrant/" + flavour
+
+	redirectToVagrant([]string{"cp", flavourVagrantPath, "/usr/local/etc/pot/flavours/"})
+
+	flavourPotPath := "/usr/local/etc/pot/flavours/" + flavour
+
+	redirectToVagrant([]string{"chmod", "755", flavourPotPath})
+
+}

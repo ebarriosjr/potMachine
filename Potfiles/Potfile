@@ -1,0 +1,17 @@
+FROM 12.0
+NAME tcs-nginx
+COPY index.html /usr/local/www/nginx-dist/index.html
+ENV PEPE hola
+ENV PEPE2=chao
+RUN sed -i '' 's/quarterly/latest/' /etc/pkg/FreeBSD.conf
+RUN pkg install -y nginx
+RUN pkg clean -a -y
+FLAVOUR slim
+EXPOSE 80
+
+MEMORY 1024M
+CPU 2
+ARG PEPE=chao
+ARG PEPE jeje
+
+CMD ["nginx","-g","'daemon off;'"]

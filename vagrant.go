@@ -1,0 +1,288 @@
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"os/user"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/bmatcuk/go-vagrant"
+)
+
+func initializeVagrant(vmType string, ip string, verbose bool) {
+
+	vagrantDirPath := getVagrantDirPath()
+	vagrantFilePath := vagrantDirPath + "/Vagrantfile"
+
+	_, err := os.Stat(vagrantFilePath)
+	if os.IsNotExist(err) {
+		fmt.Println("==> VagrantFile did not exists.\n==> Generating a new one on ~/.pot/Vagrantfile\n==> To change the Vagrant properties edit this file.\n==> After editing run: pot machine reload")
+		var defaultVagrant string
+		if vmType == "virtualbox" {
+			if config.Memory == "" {
+				config.Memory = "1024"
+			}
+
+			if config.Cpus == "" {
+				config.Cpus = "1"
+			}
+
+			defaultVagrant = `Vagrant.configure("2") do |config|
+  config.vm.box = "ebarriosjr/FreeBSD12-zfs"
+  config.vm.box_version = "0.0.4"
+  config.vm.network "private_network", ip: "` + ip + `"
+  config.vm.define :potMachine do |t|
+  end
+  config.vm.provider "virtualbox" do |vb|
+	vb.memory = "` + config.Memory + `"
+	vb.cpus = ` + config.Cpus + `
+  end
+  config.vm.synced_folder ".", "/vagrant", disabled: true 
+  config.vm.synced_folder "` + vagrantDirPath + `", "/vagrant", create: true, type: "nfs"
+end`
+			fmt.Println("==> Virtualbox ip: ", ip)
+
+		} else if vmType == "nomad" {
+			if config.Memory == "" {
+				config.Memory = "1024"
+			}
+
+			if config.Cpus == "" {
+				config.Cpus = "1"
+			}
+
+			defaultVagrant = `
+$script = <<-SCRIPT
+minipot-init -i ` + ip + ` && minipot-start
+echo "POT_EXTRA_EXTIF=em1" >> /usr/local/etc/pot/pot.conf
+echo "POT_NETWORK_em1=` + ip + `/24" >> /usr/local/etc/pot/pot.conf
+chmod +x /usr/local/etc/pot/flavours/*
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ebarriosjr/FreeBSD12-miniPot"
+  config.vm.box_version = "0.0.1"
+  config.vm.network "private_network", ip: "` + ip + `"
+  config.vm.provision "shell", inline: $script
+  config.vm.define :potMachine do |t|
+  end
+  config.vm.provider "virtualbox" do |vb|
+	vb.memory = "` + config.Memory + `"
+	vb.cpus = ` + config.Cpus + `
+  end
+  config.vm.synced_folder ".", "/vagrant", disabled: true 
+  config.vm.synced_folder "` + vagrantDirPath + `", "/vagrant", create: true, type: "nfs"
+end`
+		} else {
+			defaultVagrant = `Vagrant.configure("2") do |config|
+  config.vm.box = "ebarriosjr/FreeBSD12-zfs"
+  config.vm.box_version = "0.0.4"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder "` + vagrantDirPath + `", "/vagrant", create: true
+  config.vm.define :potMachine do |t|
+  end
+  config.vm.provider "libvirt" do |lv|
+     lv.memory = "` + config.Memory + `"
+     lv.cpus = ` + config.Cpus + `
+  end
+end`
+		}
+		//Write Vagrantfile
+		err = ioutil.WriteFile(vagrantFilePath, []byte(defaultVagrant), 0664)
+		if err != nil {
+			log.Error("Error writting file to disk with err: \n", err)
+			return
+		}
+	}
+
+	client, err := vagrant.NewVagrantClient(vagrantDirPath)
+	if err != nil {
+		log.Error("Error: No enviroment detected.")
+		return
+	}
+
+	upCmd := client.Up()
+	upCmd.Verbose = verbose
+	if err := upCmd.Run(); err != nil {
+		log.Error("Error running vagrant with err: ", err)
+	}
+	if upCmd.Error != nil {
+		log.Error("Upcmd error: ", err)
+	}
+
+	if vmType == "nomad" {
+		nomadAddr := "NOMAD_ADDR=" + ip + ":4646"
+		fmt.Println("")
+		fmt.Println("==> Pot machine created successfully. ")
+		fmt.Println("==> ENV variables needed for Nomad: ")
+		fmt.Println("==> export ", nomadAddr)
+		fmt.Println("==> Extra info: ")
+		fmt.Println("==> Region: global")
+		fmt.Println("==> Datacenter: minipot")
+		fmt.Println("")
+	}
+}
+
+func redirectToVagrant(args []string) {
+	//vagrantID := getVagrantID()
+	vagrantDirPath := getVagrantDirPath()
+	configSSHFile := vagrantDirPath + "sshConfig"
+	if _, err := os.Stat(configSSHFile); os.IsNotExist(err) {
+		createConfigCmd := "cd " + vagrantDirPath + "&& vagrant ssh-config > " + configSSHFile
+		configCmd := exec.Command("bash", "-c", createConfigCmd)
+		configCmd.Stdout = os.Stdout
+		configCmd.Stdin = os.Stdin
+		configCmd.Stderr = os.Stderr
+		configCmd.Run()
+		configCmd.Wait()
+	}
+
+	arguments := strings.Join(args, " ")
+	//termCmd := "vagrant ssh " + vagrantID + " -c 'sudo " + arguments + "' 2>/dev/null"
+	termCmd := "ssh -F " + configSSHFile + " potMachine sudo " + arguments
+	//log.Info("Command: ", termCmd)
+
+	cmd := exec.Command("bash", "-c", termCmd)
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+	cmd.Wait()
+}
+
+func connectToVagrant() {
+	vagrantDirPath := getVagrantDirPath()
+
+	termCmd := "cd " + vagrantDirPath + "&& vagrant ssh"
+	cmd := exec.Command("bash", "-c", termCmd)
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+	cmd.Wait()
+}
+
+func destroyVagrant(verbose bool) {
+	vagrantDirPath := getVagrantDirPath()
+
+	client, err := vagrant.NewVagrantClient(vagrantDirPath)
+	if err != nil {
+		log.Error("Error: No enviroment detected.")
+		return
+	}
+	destroyCmd := client.Destroy()
+	destroyCmd.Verbose = verbose
+	if err := destroyCmd.Run(); err != nil {
+		log.Error("Error running vagrant with err: ", err)
+		return
+	}
+	if destroyCmd.Error != nil {
+		log.Error("Upcmd error: ", err)
+		return
+	}
+
+	err = os.Remove(vagrantDirPath + "Vagrantfile")
+	if err != nil {
+		fmt.Println("Error removing Vagrantfile from ", vagrantDirPath)
+	}
+
+	os.Remove(vagrantDirPath + "sshConfig")
+}
+
+func getVagrantID() string {
+	vagrantDirPath := getVagrantDirPath()
+	dat, err := ioutil.ReadFile(vagrantDirPath + ".vagrant/machines/potMachine/libvirt/index_uuid")
+	if err != nil {
+		//Not a vagrant machine.
+		dat, err := ioutil.ReadFile(vagrantDirPath + ".vagrant/machines/potMachine/virtualbox/index_uuid")
+		if err != nil {
+			log.Error("Unable to read index_uuid file with err: \n", err)
+			return ""
+		}
+		return string(dat[:6])
+
+	}
+	return string(dat[:6])
+}
+
+func getVagrantDirPath() string {
+	homeDir := getUserHome()
+	if homeDir == "" {
+		log.Error("Error getting user home directory info...")
+		return ""
+	}
+
+	vagrantDirPath := homeDir + "/.pot/"
+	if _, err := os.Stat(vagrantDirPath); os.IsNotExist(err) {
+		os.Mkdir(vagrantDirPath, 0755)
+	}
+
+	return vagrantDirPath
+}
+
+func getUserHome() string {
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal("Error getting current user info with err: \n", err)
+		return ""
+	}
+	//log.Info("Home path: ", usr.HomeDir)
+	return usr.HomeDir
+}
+
+func startVagrant(verbose bool) {
+	vagrantDirPath := getVagrantDirPath()
+	client, err := vagrant.NewVagrantClient(vagrantDirPath)
+	if err != nil {
+		log.Error("Error starting potMachine")
+		return
+	}
+
+	upCmd := client.Up()
+	upCmd.Verbose = verbose
+	if err := upCmd.Run(); err != nil {
+		log.Error("Error running vagrant with err: ", err)
+	}
+	if upCmd.Error != nil {
+		log.Error("Startcmd error: ", err)
+	}
+}
+
+func stopVagrant(verbose bool) {
+	vagrantDirPath := getVagrantDirPath()
+	client, err := vagrant.NewVagrantClient(vagrantDirPath)
+	if err != nil {
+		log.Error("Error stoping potMachine")
+		return
+	}
+
+	upCmd := client.Halt()
+	upCmd.Verbose = verbose
+	if err := upCmd.Run(); err != nil {
+		log.Error("Error running vagrant with err: ", err)
+	}
+	if upCmd.Error != nil {
+		log.Error("Stopcmd error: ", err)
+	}
+}
+
+func reloadVagrant(verbose bool) {
+	vagrantDirPath := getVagrantDirPath()
+	client, err := vagrant.NewVagrantClient(vagrantDirPath)
+	if err != nil {
+		log.Error("Error reloading potMachine")
+		return
+	}
+
+	upCmd := client.Reload()
+	upCmd.Verbose = verbose
+	if err := upCmd.Run(); err != nil {
+		log.Error("Error running vagrant with err: ", err)
+	}
+	if upCmd.Error != nil {
+		log.Error("Stopcmd error: ", err)
+	}
+}

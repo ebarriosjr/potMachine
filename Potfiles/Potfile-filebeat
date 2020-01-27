@@ -1,0 +1,10 @@
+FROM 12.0
+NAME tcs-nginx
+WORKDIR 
+FLAVOUR slim
+EXPOSE 80
+
+MEMORY 1024M
+CPU 2
+
+CMD ["nginx","pepe"]
