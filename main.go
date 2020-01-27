@@ -8,7 +8,6 @@ import (
 	"os/exec"
 
 	"github.com/BurntSushi/toml"
-	"github.com/prometheus/common/log"
 )
 
 var config Config
@@ -62,7 +61,7 @@ Cpus = "2"
 		//Write configFile
 		err = ioutil.WriteFile(configFile, []byte(defaultConfig), 0664)
 		if err != nil {
-			log.Error("Error writting file to disk with err: \n", err)
+			fmt.Println("Error: Error writting file to disk with err: \n", err)
 			return
 		}
 
@@ -70,7 +69,8 @@ Cpus = "2"
 	tomlData, _ := ioutil.ReadFile(configFile)
 
 	if _, err := toml.Decode(string(tomlData), &config); err != nil {
-		log.Fatal("Error running toml.Decode: ", err)
+		fmt.Println("Error running toml.Decode: ", err)
+		return
 	}
 
 }
