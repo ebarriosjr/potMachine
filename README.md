@@ -122,14 +122,25 @@ CMD nginx
 ## Commands available on Potfile ##
 
 FROM
+
 NAME
+
 COPY
+
 ADD
+
 ENV
+
 RUN
+
 FLAVOUR
+
 EXPOSE
+
 MEMORY
+
 CPU
+
 ARG
+
 CMD
