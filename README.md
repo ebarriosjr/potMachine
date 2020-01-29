@@ -1,19 +1,47 @@
-# For MacOS #
+# Description #
 
-## Install VirtualBox ##
+Pot Machine creates a local vagrant VM with FreeBSD12 running on zfs.
+This allows developers to test local pots (https://github.com/pizzamig/pot) on linux or MacOS.
+This implementation tries to mimic as much as possible the model implemented by docker.
+This means you can have Potfiles where you write the configuration for your pot,
+and running a pot build will create a freeBSD jail based on this "config".
+
+There is also the possibility to create a miniPot enviroment that includes Pot, nomad and consul by default.
+
+## For MacOS ##
+
+### Install VirtualBox (MacOS) ###
 
 https://download.virtualbox.org/virtualbox/6.0.14/VirtualBox-6.0.14-133895-OSX.dmg
 
-## Install Vagrant ##
+### Install Vagrant (MacOS) ###
 
 https://releases.hashicorp.com/vagrant/2.2.6/vagrant_2.2.6_x86_64.dmg
 
-## Compile the potMachine binary ##
+### Compile the potMachine binary (MacOS) ###
 
 ```bash
 git clone https://github.com/ebarriosjr/potMachine.git
 cd potMachine
 GOOS=darwin go build -o pot .
+```
+
+## For Linux ##
+
+### Install VirtualBox (Linux) ###
+
+https://www.virtualbox.org/wiki/Linux_Downloads
+
+### Install Vagrant (Linux) ###
+
+https://releases.hashicorp.com/vagrant/2.2.6/vagrant_2.2.6_linux_amd64.zip
+
+### Compile the potMachine binary (Linux) ###
+
+```bash
+git clone https://github.com/ebarriosjr/potMachine.git
+cd potMachine
+GOOS=linux go build -o pot .
 ```
 
 ## Move binary ##
@@ -23,16 +51,6 @@ move pot to PATH
 ```bash
 mv pot /usr/local/bin/pot
 ```
-
-## Initialize potMachine only ##
-
-```bash
-pot machine init virtualbox -ip 192.168.44.100
-```
-
--ip could be anything you want. By default it is 192.168.44.100
-
--v would make the command verbose
 
 ## Initialize potMachine with minipot setup ##
 
@@ -44,10 +62,20 @@ pot machine init nomad -ip 192.168.44.100
 
 -v would make the command verbose
 
+## Initialize potMachine only (without nomad or consul) ##
+
+```bash
+pot machine init virtualbox -ip 192.168.44.100
+```
+
+-ip could be anything you want. By default it is 192.168.44.100
+
+-v would make the command verbose
+
 ## Help ##
 
 ```bash
-pot
+pot -h
 
 Local Commands:
 
@@ -121,26 +149,26 @@ CMD nginx
 
 ## Commands available on Potfile ##
 
-FROM
+FROM -> Base FreeBSD OS to run inside the jail (ex. 12.0)
 
-NAME
+NAME -> Name for the pot jail. (Required)
 
-COPY
+COPY -> Copy local files to the jail after running all the command on the RUN stanza.
 
-ADD
+ADD -> Downloads remote file to the pot jail.
 
-ENV
+ENV -> Adds enviroment variables inside the running pot jail.
 
-RUN
+RUN -> Command to be executed on creation of the pot jail.
 
-FLAVOUR
+FLAVOUR -> Predifined or user created scripts to apply to a pot after RUN is done.
 
-EXPOSE
+EXPOSE -> 
 
-MEMORY
+MEMORY -> Memory limitation for the pot jail. (ex. MEMORY 1024M)
 
-CPU
+CPU -> Number of cores assing to this pot jail (ex. CPU 2)
 
-ARG
+ARG -> ENV variables that get added in the building process of the pot jail.
 
-CMD
+CMD -> Array of commands that will be executed on pot start. (ex. CMD ["nginx","-g","'daemon off;'"])
