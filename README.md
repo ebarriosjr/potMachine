@@ -56,23 +56,7 @@ Example:
 mv pot /usr/local/bin/pot
 ```
 
-# Initialize potMachine with minipot setup #
-
-Minipot is a program that runs nomad, consul, traeffic and pot in a single Vagrant VM. This will give you and enviroment to test and develop your applications in a local enviroment.
-
-```bash
-pot machine init nomad
-```
-
-### Command Options ###
-
-```bash
-Options:
-  -ip -- Assigns an IP to the potMachine
-  -v -- Verbose
-```
-
-# Initialize potMachine only #
+# Initialize potMachine #
 
 This command will start a Vagrant VM running pot without nomad, consul or traeffic.
 
@@ -207,4 +191,22 @@ Commands:
     import -- Import a pot from a file or a URL
     prepare -- Import and prepare a pot - designed for jail orchestrator
     update-config -- Update the configuration of a pot
+```
+
+# Bonus - Mesh #
+
+If you want to run a service mesh on your local machine you can use Minipot.
+
+Minipot is a program that runs nomad, consul, traeffic and pot in a single Vagrant VM. This will give you and enviroment to test and develop your applications in a local enviroment.
+
+```bash
+pot machine init nomad
+```
+
+### Command Options ###
+
+```bash
+Options:
+  -ip -- Assigns an IP to the potMachine
+  -v -- Verbose
 ```
