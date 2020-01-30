@@ -8,17 +8,19 @@ and running a pot build will create a freeBSD jail based on this "config".
 
 There is also the possibility to create a miniPot enviroment that includes Pot, nomad and consul by default.
 
-## For MacOS ##
+This program will create a folder on ~/.pot that will contain all the configuration and exports made wit it. This ~/.pot folder will be mounted inside the vagrant vm under /vagrant
 
-### Install VirtualBox (MacOS) ###
+# For MacOS #
 
-https://download.virtualbox.org/virtualbox/6.0.14/VirtualBox-6.0.14-133895-OSX.dmg
+### Install VirtualBox ###
 
-### Install Vagrant (MacOS) ###
+<https://download.virtualbox.org/virtualbox/6.0.14/VirtualBox-6.0.14-133895-OSX.dmg>
 
-https://releases.hashicorp.com/vagrant/2.2.6/vagrant_2.2.6_x86_64.dmg
+### Install Vagrant ###
 
-### Compile the potMachine binary (MacOS) ###
+<https://releases.hashicorp.com/vagrant/2.2.6/vagrant_2.2.6_x86_64.dmg>
+
+### Compile the potMachine binary ###
 
 ```bash
 git clone https://github.com/ebarriosjr/potMachine.git
@@ -26,17 +28,17 @@ cd potMachine
 GOOS=darwin go build -o pot .
 ```
 
-## For Linux ##
+# For Linux #
 
-### Install VirtualBox (Linux) ###
+### Install VirtualBox ###
 
-https://www.virtualbox.org/wiki/Linux_Downloads
+<https://www.virtualbox.org/wiki/Linux_Downloads>
 
-### Install Vagrant (Linux) ###
+### Install Vagrant ###
 
 https://releases.hashicorp.com/vagrant/2.2.6/vagrant_2.2.6_linux_amd64.zip
 
-### Compile the potMachine binary (Linux) ###
+### Compile the potMachine binary ###
 
 ```bash
 git clone https://github.com/ebarriosjr/potMachine.git
@@ -44,33 +46,106 @@ cd potMachine
 GOOS=linux go build -o pot .
 ```
 
-## Move binary ##
+# Move binary #
 
-move pot to PATH
+For both platforms (Linux/MacOS) the binarie need to be moved to a folder inside the user $PATH.
+
+Example:
 
 ```bash
 mv pot /usr/local/bin/pot
 ```
 
-## Initialize potMachine with minipot setup ##
+# Initialize potMachine with minipot setup #
+
+Minipot is a program that runs nomad, consul, traeffic and pot in a single Vagrant VM. This will give you and enviroment to test and develop your applications in a local enviroment.
 
 ```bash
-pot machine init nomad -ip 192.168.44.100
+pot machine init nomad
 ```
 
--ip could be anything you want. By default it is 192.168.44.100
-
--v would make the command verbose
-
-## Initialize potMachine only (without nomad or consul) ##
+### Command Options ###
 
 ```bash
-pot machine init virtualbox -ip 192.168.44.100
+Options:
+  -ip -- Assigns an IP to the potMachine
+  -v -- Verbose
 ```
 
--ip could be anything you want. By default it is 192.168.44.100
+# Initialize potMachine only #
 
--v would make the command verbose
+This command will start a Vagrant VM running pot without nomad, consul or traeffic.
+
+```bash
+pot machine init virtualbox
+```
+
+### Command Options ###
+
+```bash
+Options:
+  -ip -- Assigns an IP to the potMachine
+  -v -- Verbose
+```
+
+# Potfile #
+
+Potfile is an configuration file si,ilar to Dockerfile. With this file a build of a pot can be triggered.
+
+In order to create a Pot with a Potfile the command `pot build .` need to be executed. You can also tag your build to export the pot in one command. 
+
+For example:
+
+```bash
+pot build -t fileserver.example/pot/nginx:0.1
+```
+
+This command will create the pot and export the zfs dataset in a compres xz format to ~/.pot/exports
+
+In order to push the pot dataset you need to run the following command:
+
+```bash
+pot push -t artifactory.local/artifactory/generic-local/pot/nginx:0.1
+```
+
+If your file server requires authentication you can give Pot this information by running:
+
+```bash
+pot login -u username --password-stdin fileserver.example
+```
+
+This information will be save to `~/.pot/config.json` and will be used on every push in that domain.
+
+
+## Potfile example for nginx ##
+
+```bash
+FROM 12.0
+NAME tcs-nginx
+COPY index.html /usr/local/www/nginx-dist/index.html
+RUN sed -i '' 's/quarterly/latest/' /etc/pkg/FreeBSD.conf
+RUN pkg install -y nginx
+RUN pkg clean -a -y
+FLAVOUR slim
+CMD nginx
+```
+
+## Commands available on Potfile ##
+
+Command | Description | example
+--- | --- | ---
+`FROM` | Base FreeBSD OS to run inside the jail| FROM 12.1
+`NAME` | Name for the pot jail. | NAME nginx
+`COPY` | Copy local files to the jail after running all the command on the RUN stanza | COPY index.html /usr/local/www/nginx-dist/index.html
+`ADD` | Downloads remote file to the pot jail | ADD <https://fileserver.com/test.rar>
+`ARG` | ENV variable that get added inside the `creation` process of the pot jail | ARG VAR=VALUE
+`RUN` | Command to be executed on `creation` of the pot jail | RUN pkg install -y nginx
+`FLAVOUR` | Predifined or user created scripts to apply to a pot after RUN is done | FLAVOUR slim
+`EXPOSE` | Tells the Pot which port should be exposed | EXPOSE 80
+`MEMORY` | Memory limitation for the pot jail | MEMORY 1024M
+`CPU` | Number of cores assing to this pot jail | CPU 2
+`ENV` | Adds enviroment variables inside the running pot jail | ENV VAR=VALUE
+`CMD` | Array of commands that will be executed on pot start |CMD ["nginx","-g","'daemon off;'"]
 
 ## Help ##
 
@@ -82,7 +157,7 @@ Local Commands:
     machine -- Creates a local enviroment with pot jail in it
     build -- Build an image from a Potfile
     push -- Push an Pot image to a web endpoint
-    login -- Log in to a Pot file server
+    login -- Log into a Pot file server
 
 Remote Commands:
 
@@ -133,42 +208,3 @@ Commands:
     prepare -- Import and prepare a pot - designed for jail orchestrator
     update-config -- Update the configuration of a pot
 ```
-
-## Potfile example for nginx ##
-
-```bash
-FROM 12.0
-NAME tcs-nginx
-COPY index.html /usr/local/www/nginx-dist/index.html
-RUN sed -i '' 's/quarterly/latest/' /etc/pkg/FreeBSD.conf
-RUN pkg install -y nginx
-RUN pkg clean -a -y
-FLAVOUR slim
-CMD nginx
-```
-
-## Commands available on Potfile ##
-
-FROM -> Base FreeBSD OS to run inside the jail (ex. 12.0)
-
-NAME -> Name for the pot jail. (Required)
-
-COPY -> Copy local files to the jail after running all the command on the RUN stanza.
-
-ADD -> Downloads remote file to the pot jail.
-
-ENV -> Adds enviroment variables inside the running pot jail.
-
-RUN -> Command to be executed on creation of the pot jail.
-
-FLAVOUR -> Predifined or user created scripts to apply to a pot after RUN is done.
-
-EXPOSE -> 
-
-MEMORY -> Memory limitation for the pot jail. (ex. MEMORY 1024M)
-
-CPU -> Number of cores assing to this pot jail (ex. CPU 2)
-
-ARG -> ENV variables that get added in the building process of the pot jail.
-
-CMD -> Array of commands that will be executed on pot start. (ex. CMD ["nginx","-g","'daemon off;'"])
