@@ -30,8 +30,8 @@ func initializeVagrant(vmType string, ip string, verbose bool) {
 			}
 
 			defaultVagrant = `Vagrant.configure("2") do |config|
-  config.vm.box = "ebarriosjr/FreeBSD12-zfs"
-  config.vm.box_version = "0.0.4"
+  config.vm.box = "ebarriosjr/FreeBSD12.1-zfs"
+  config.vm.box_version = "0.0.1"
   config.vm.network "private_network", ip: "` + ip + `"
   config.vm.define :potMachine do |t|
   end
@@ -63,7 +63,7 @@ SCRIPT
 
 Vagrant.configure("2") do |config|
   config.vm.box = "ebarriosjr/FreeBSD12-miniPot"
-  config.vm.box_version = "0.0.1"
+  config.vm.box_version = "0.0.2"
   config.vm.network "private_network", ip: "` + ip + `"
   config.vm.provision "shell", inline: $script
   config.vm.define :potMachine do |t|
@@ -77,8 +77,8 @@ Vagrant.configure("2") do |config|
 end`
 		} else {
 			defaultVagrant = `Vagrant.configure("2") do |config|
-  config.vm.box = "ebarriosjr/FreeBSD12-zfs"
-  config.vm.box_version = "0.0.4"
+  config.vm.box = "ebarriosjr/FreeBSD12.1-zfs"
+  config.vm.box_version = "0.0.1"
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.synced_folder "` + vagrantDirPath + `", "/vagrant", create: true
   config.vm.define :potMachine do |t|
@@ -113,7 +113,7 @@ end`
 	}
 
 	if vmType == "nomad" {
-		nomadAddr := "NOMAD_ADDR=" + ip + ":4646"
+		nomadAddr := "NOMAD_ADDR=http://" + ip + ":4646"
 		fmt.Println("")
 		fmt.Println("==> Pot machine created successfully. ")
 		fmt.Println("==> ENV variables needed for Nomad: ")
