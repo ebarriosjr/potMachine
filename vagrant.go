@@ -52,9 +52,16 @@ end`
 			if config.Cpus == "" {
 				config.Cpus = "1"
 			}
-			defaultVagrant = `Vagrant.configure("2") do |config|
+			defaultVagrant = `
+$script = <<-SCRIPT
+echo 'ifconfig_em1="inet ` + ip + ` netmask 255.255.255.0"' >> /etc/rc.conf
+SCRIPT
+
+Vagrant.configure("2") do |config|
   config.vm.box = "ebarriosjr/FreeBSD12.1-zfs"
   config.vm.box_version = "0.0.1"
+  config.vm.network "private_network", ip: "` + ip + `"
+  config.vm.provision "shell", inline: $script
   config.vm.define :potMachine do |t|
   end
   config.vm.provider "xhyve" do |xhyve|
@@ -62,8 +69,8 @@ end`
   	xhyve.memory = "` + config.Memory + `"
   	xhyve.kernel_command=""
   end
-  config.vm.synced_folder ".", "/vagrant", disabled: true 
-  config.vm.synced_folder "` + vagrantDirPath + `", "/vagrant", create: true, type: "nfs"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder "` + vagrantDirPath + `", "/vagrant", create: true, type: "nfs" 
 end`
 		} else if vmType == "nomad" {
 			if config.Memory == "" {
