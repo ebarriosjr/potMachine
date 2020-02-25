@@ -44,6 +44,27 @@ func initializeVagrant(vmType string, ip string, verbose bool) {
 end`
 			fmt.Println("==> Virtualbox ip: ", ip)
 
+		} else if vmType == "xhyve" {
+			if config.Memory == "" {
+				config.Memory = "1024"
+			}
+
+			if config.Cpus == "" {
+				config.Cpus = "1"
+			}
+			defaultVagrant = `Vagrant.configure("2") do |config|
+  config.vm.box = "ebarriosjr/FreeBSD12.1-zfs"
+  config.vm.box_version = "0.0.1"
+  config.vm.define :potMachine do |t|
+  end
+  config.vm.provider "xhyve" do |xhyve|
+  	xhyve.cpus = ` + config.Cpus + `
+  	xhyve.memory = "` + config.Memory + `"
+  	xhyve.kernel_command=""
+  end
+  config.vm.synced_folder ".", "/vagrant", disabled: true 
+  config.vm.synced_folder "` + vagrantDirPath + `", "/vagrant", create: true, type: "nfs"
+end`
 		} else if vmType == "nomad" {
 			if config.Memory == "" {
 				config.Memory = "1024"

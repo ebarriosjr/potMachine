@@ -37,10 +37,12 @@ func init() {
 			vmType = "virtualbox"
 		} else if isCommandAvailable("libvirtd") {
 			vmType = "libvirtd"
+		} else if isCommandAvailable("xhyve") {
+			vmType = "xhyve"
 		}
 
 		if vmType == "" {
-			fmt.Println("==> Virtualbox or Libvirtd needs to be installed for potMachine to run.")
+			fmt.Println("==> Virtualbox, Libvirtd or xhyve needs to be installed for potMachine to run.")
 			os.Exit(1)
 		}
 
@@ -123,7 +125,7 @@ func main() {
 
 	initCommand := flag.NewFlagSet("init", flag.ExitOnError)
 	initCommand.Usage = func() {
-		fmt.Fprintf(os.Stderr, "\nUsage: pot machine init [VMTYPE] [OPTIONS]\n\nCreates a local potMachine\n\nVmType:\n  virtualbox -- Starts the potMachine in Virtualbox\n  libvirt -- Starts the potMachine inLibvirt\n\nOptions:\n  -ip -- Assigns an ip to the potMachine (only works with Virtualbox type)\n  -v -- Verbose\n")
+		fmt.Fprintf(os.Stderr, "\nUsage: pot machine init [VMTYPE] [OPTIONS]\n\nCreates a local potMachine\n\nVmType:\n  virtualbox -- Starts the potMachine in Virtualbox\n  libvirt -- Starts the potMachine in Libvirt\n  xhyve -- Starts the potMachine in Xhyve\n\nOptions:\n  -ip -- Assigns an ip to the potMachine (only works with Virtualbox type)\n  -v -- Verbose\n")
 	}
 
 	sshCommand := flag.NewFlagSet("ssh", flag.ExitOnError)
@@ -141,6 +143,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nUsage: pot machine init libvirt [OPTIONS]\n\nCreates a local potMachine in Libvirt\n\nOptions:\n  -v -- Verbose\n")
 	}
 
+	initXhyveCommand := flag.NewFlagSet("xhyve", flag.ExitOnError)
+	initXhyveCommand.Usage = func() {
+		fmt.Fprintf(os.Stderr, "\nUsage: pot machine init xhyve [OPTIONS]\n\nCreates a local potMachine in Xhyve\n\nOptions:\n  -v -- Verbose\n")
+	}
+
 	initNomadCommand := flag.NewFlagSet("nomad", flag.ExitOnError)
 	initNomadCommand.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\nUsage: pot machine init nomad [OPTIONS]\n\nCreates a local potMachine in virtualbox with minipot installed\n\nOptions:\n  -ip -- Assigns an ip to the potMachine\n  -v -- Verbose\n")
@@ -155,6 +162,7 @@ func main() {
 	NomadFlag := initNomadCommand.String("ip", "", "Ip address for the nomad VM")
 	verboseVB := initVBCommand.Bool("v", false, "Verbose")
 	verboseLibvirt := initLibvirtCommand.Bool("v", false, "Verbose")
+	verboseXhyve := initXhyveCommand.Bool("v", false, "Verbose")
 	verboseNomad := initNomadCommand.Bool("v", false, "Verbose")
 	verboseDestroy := destroyCommand.Bool("v", false, "Verbose")
 	verboseStart := startCommand.Bool("v", false, "Verbose")
@@ -281,10 +289,12 @@ func main() {
 			initVBCommand.Parse(os.Args[4:])
 		case "libvirt":
 			initLibvirtCommand.Parse(os.Args[4:])
+		case "xhyve":
+			initXhyveCommand.Parse(os.Args[4:])
 		case "nomad":
 			initNomadCommand.Parse(os.Args[4:])
 		default:
-			fmt.Println("Usage: pot machine init [command]\n\nCommands:\n  virtualbox -- Initialize virtualbox enviroment for pot with Vagrant\n  libvirt -- Initialize libvirt enviroment for pot with Vagrant\n  nomad -- Initialize a virtualbox env with minipot running")
+			fmt.Println("Usage: pot machine init [command]\n\nCommands:\n  virtualbox -- Initialize virtualbox enviroment for pot with Vagrant\n  libvirt -- Initialize libvirt enviroment for pot with Vagrant\n  xhyve -- Initialize Xhyve enviroment for pot with Vagrant\n  nomad -- Initialize a virtualbox env with minipot running")
 			return
 		}
 	}
@@ -307,6 +317,12 @@ func main() {
 	if initLibvirtCommand.Parsed() {
 		fmt.Println("==> Initializing vagrant libvirt potMachine for the first time....")
 		initializeVagrant("libvirtd", "", *verboseLibvirt)
+		return
+	}
+
+	if initXhyveCommand.Parsed() {
+		fmt.Println("==> Initializing vagrant xhyve potMachine for the first time....")
+		initializeVagrant("xhyve", "", *verboseXhyve)
 		return
 	}
 
