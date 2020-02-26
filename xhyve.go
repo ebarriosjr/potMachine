@@ -25,19 +25,21 @@ ACPI="-A"
 xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV"
 `
 	//Write runfile to ~/.pot/xhyve/run.sh
+	//Initializa xhyve vm
+	//Get xhyve ip
+	xhyveIP := ""
 	//generate sshConfig file
 	sshConfig := `Host potMachine
-  HostName 127.0.0.1
+  HostName ` + xhyveIP + `
   User vagrant
-  Port 2222
+  Port 22
   UserKnownHostsFile /dev/null
   StrictHostKeyChecking no
   PasswordAuthentication no
-  IdentityFile /home/ebarrios/.pot/.vagrant/machines/potMachine/virtualbox/private_key
+  IdentityFile ~/.pot/xhyve/private_key
   IdentitiesOnly yes
   LogLevel FATAL
-
-	`
+`
 
 	fmt.Println("Runfile", runFile)
 	fmt.Println("sshConfig", sshConfig)
