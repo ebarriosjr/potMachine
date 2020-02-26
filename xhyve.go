@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 func initializeXhyve(verbose bool) {
 	//mkdir ~/.pot/xhyve if it doesnt exists
@@ -26,6 +29,11 @@ xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$I
 `
 	//Write runfile to ~/.pot/xhyve/run.sh
 	//Initializa xhyve vm
+	err := runXhyve()
+	if err != nil {
+		fmt.Println("Error creating xhyve vm with err: ", err)
+		return
+	}
 	//Get xhyve ip
 	xhyveIP := ""
 	//generate sshConfig file
@@ -43,4 +51,34 @@ xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$I
 
 	fmt.Println("Runfile", runFile)
 	fmt.Println("sshConfig", sshConfig)
+}
+
+func runXhyve() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Println("Error getting user home path with err:", err)
+		return err
+	}
+	var attr = os.ProcAttr{
+		Dir: ".",
+		Env: os.Environ(),
+		Files: []*os.File{
+			os.Stdin,
+			nil,
+			nil,
+		},
+	}
+	process, err := os.StartProcess(home+"/.pot/xhyve/run.sh", []string{home + "/.pot/xhyve/run.sh"}, &attr)
+	if err == nil {
+		// It is not clear from docs, but Realease actually detaches the process
+		err = process.Release()
+		if err != nil {
+			fmt.Println("Error releasing xhyve process with err: ", err.Error())
+			return err
+		}
+	} else {
+		fmt.Println("Error starting xhyve process with err: ", err.Error())
+		return err
+	}
+	return nil
 }
