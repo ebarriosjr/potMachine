@@ -3,28 +3,42 @@ package main
 import "fmt"
 
 func initializeXhyve(verbose bool) {
-	//Download block0.img -> ~/.pot/xhyve/block0.img
-	//download userboot.so -> ~/.pot/xhyve/userboot.so
+	//mkdir ~/.pot/xhyve if it doesnt exists
+	//Download from github respo xhyve.tar.zg -> ~/.pot/xhyve
+	//untar xhyve.tar.gz into ~/.pot/xhyve
 	//Check if runfile exists
 	//Create run file
-	runFile := `
-	#/bin/sh
-	UUID="-U potpotpo-potp-potp-potp-potmachinepp"
-	USERBOOT="~/.pot/xhyve/userboot.so"
-	IMG="~/.pot/xhyve/block0.img"
-	KERNELENV=""
+	runFile := `#/bin/sh
+UUID="-U potpotpo-potp-potp-potp-potmachinepp"
+USERBOOT="~/.pot/xhyve/userboot.so"
+IMG="~/.pot/xhyve/block0.img"
+KERNELENV=""
 
-	MEM="-m 4G"
-	SMP="-c 2"
-	PCI_DEV="-s 0:0,hostbridge -s 31,lpc"
-	NET="-s 2:0.virtio-net"
-	IMG_HDD="-s 4:0,virtio-blk,$IMG"
-	LPC_DEV="-l com1,stdio"
-	ACPI="-A"
+MEM="-m 4G"
+SMP="-c 2"
+PCI_DEV="-s 0:0,hostbridge -s 31,lpc"
+NET="-s 2:0.virtio-net"
+IMG_HDD="-s 4:0,virtio-blk,$IMG"
+LPC_DEV="-l com1,stdio"
+ACPI="-A"
 
-	xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV"
-	`
+xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV"
+`
 	//Write runfile to ~/.pot/xhyve/run.sh
+	//generate sshConfig file
+	sshConfig := `Host potMachine
+  HostName 127.0.0.1
+  User vagrant
+  Port 2222
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /home/ebarrios/.pot/.vagrant/machines/potMachine/virtualbox/private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
 
-	fmt.Println(runFile)
+	`
+
+	fmt.Println("Runfile", runFile)
+	fmt.Println("sshConfig", sshConfig)
 }
