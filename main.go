@@ -321,8 +321,9 @@ func main() {
 	}
 
 	if initXhyveCommand.Parsed() {
-		fmt.Println("==> Initializing vagrant xhyve potMachine for the first time....")
-		initializeVagrant("xhyve", "", *verboseXhyve)
+		fmt.Println("==> Initializing xhyve potMachine for the first time....")
+		initializeXhyve(*verboseXhyve)
+		//initializeVagrant("xhyve", "", *verboseXhyve)
 		return
 	}
 
