@@ -25,7 +25,7 @@ func initializeXhyve(verbose bool) {
 	}
 
 	//Download from github respo xhyve.tar.zg -> ~/.pot/xhyve
-	fileURL := "https://golangcode.com/images/avatar.jpg"
+	fileURL := "https://app.vagrantup.com/ebarriosjr/boxes/FreeBSD12.1-zfs/versions/0.0.1/providers/xhyve.box"
 	tarPath := xhyveDirPath + "/xhyve.tar.gz"
 
 	if _, err := os.Stat(tarPath); os.IsNotExist(err) {
@@ -34,6 +34,7 @@ func initializeXhyve(verbose bool) {
 			log.Fatal()
 		}
 	}
+
 	//untar xhyve.tar.gz into ~/.pot/xhyve
 	//Check if runfile exists
 	//Create run file
