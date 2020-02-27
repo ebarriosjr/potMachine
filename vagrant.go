@@ -180,8 +180,19 @@ func redirectToVagrant(args []string) {
 
 func connectToVagrant() {
 	vagrantDirPath := getVagrantDirPath()
+	configSSHFile := vagrantDirPath + "sshConfig"
+	if _, err := os.Stat(configSSHFile); os.IsNotExist(err) {
+		createConfigCmd := "cd " + vagrantDirPath + "&& vagrant ssh-config > " + configSSHFile
+		configCmd := exec.Command("bash", "-c", createConfigCmd)
+		configCmd.Stdout = os.Stdout
+		configCmd.Stdin = os.Stdin
+		configCmd.Stderr = os.Stderr
+		configCmd.Run()
+		configCmd.Wait()
+	}
 
-	termCmd := "cd " + vagrantDirPath + "&& vagrant ssh"
+	termCmd := "ssh -F " + configSSHFile + " potMachine "
+	//termCmd := "cd " + vagrantDirPath + "&& vagrant ssh"
 	cmd := exec.Command("bash", "-c", termCmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
@@ -192,6 +203,7 @@ func connectToVagrant() {
 
 func destroyVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
+	//TODO: Check if vm is not vagrant
 
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
@@ -259,6 +271,8 @@ func getUserHome() string {
 
 func startVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
+	//TODO: Check if vm is not vagrant
+
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
 		fmt.Println("ERROR: Error starting potMachine")
@@ -277,6 +291,7 @@ func startVagrant(verbose bool) {
 
 func stopVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
+	//TODO: Check if vm is not vagrant
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
 		fmt.Println("ERROR: Error stoping potMachine")
@@ -295,6 +310,8 @@ func stopVagrant(verbose bool) {
 
 func reloadVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
+	//TODO: Check if vm is not vagrant
+
 	client, err := vagrant.NewVagrantClient(vagrantDirPath)
 	if err != nil {
 		fmt.Println("ERROR: Error reloading potMachine")

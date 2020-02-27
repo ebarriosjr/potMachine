@@ -57,14 +57,22 @@ func initializeXhyve(verbose bool) {
 	}
 
 	// delete file
-	err = os.Remove(xhyveDirPath + "/xhyve.tar.gz")
+	err = os.Remove(xhyveDirPath + "/vmlinuz")
 	if err != nil {
 		fmt.Println("Error removing files with err: ", err)
 	}
 
+	// delete file
+	// err = os.Remove(xhyveDirPath + "/xhyve.tar.gz")
+	// if err != nil {
+	// 	fmt.Println("Error removing files with err: ", err)
+	// }
+
 	//Check if runfile exists
-	//Create run file
-	runFile := `#/bin/sh
+	var runFile string
+	if _, err := os.Stat(xhyveDirPath + "/run.sh"); os.IsNotExist(err) {
+		//Create run file
+		runFile = `#/bin/sh
 UUID="-U potpotpo-potp-potp-potp-potmachinepp"
 USERBOOT="~/.pot/xhyve/vmlinuz"
 IMG="~/.pot/xhyve/block0.img"
@@ -80,7 +88,15 @@ ACPI="-A"
 
 xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV"
 `
-	//Write runfile to ~/.pot/xhyve/run.sh
+		// Write runfile to ~/.pot/xhyve/run.sh
+		xhyveRunFilePath := potDirPath + "/xhyve/runFreeBSD.sh"
+
+		err = ioutil.WriteFile(xhyveRunFilePath, []byte(runFile), 0664)
+		if err != nil {
+			fmt.Println("ERROR: Error writting file to disk with err: \n", err)
+			return
+		}
+	}
 	//wg.Add()
 	var wg sync.WaitGroup
 	go netcat(&wg)
@@ -105,15 +121,7 @@ xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$I
   IdentitiesOnly yes
   LogLevel FATAL
 `
-	xhyveRunFilePath := potDirPath + "/xhyve/runFile.sh"
-
-	err = ioutil.WriteFile(xhyveRunFilePath, []byte(runFile), 0664)
-	if err != nil {
-		fmt.Println("ERROR: Error writting file to disk with err: \n", err)
-		return
-	}
-
-	xhyvesshConfigFilePath := potDirPath + "/xhyve/sshConfig"
+	xhyvesshConfigFilePath := potDirPath + "/sshConfig"
 
 	err = ioutil.WriteFile(xhyvesshConfigFilePath, []byte(sshConfig), 0664)
 	if err != nil {
