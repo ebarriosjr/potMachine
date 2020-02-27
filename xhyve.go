@@ -62,15 +62,9 @@ func initializeXhyve(verbose bool) {
 		fmt.Println("Error removing files with err: ", err)
 	}
 
-	// delete file
-	// err = os.Remove(xhyveDirPath + "/xhyve.tar.gz")
-	// if err != nil {
-	// 	fmt.Println("Error removing files with err: ", err)
-	// }
-
 	//Check if runfile exists
 	var runFile string
-	if _, err := os.Stat(xhyveDirPath + "/run.sh"); os.IsNotExist(err) {
+	if _, err := os.Stat(xhyveDirPath + "/runFreeBSD.sh"); os.IsNotExist(err) {
 		//Create run file
 		runFile = `#/bin/sh
 UUID="-U potpotpo-potp-potp-potp-potmachinepp"
@@ -88,7 +82,7 @@ ACPI="-A"
 
 xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV"
 `
-		// Write runfile to ~/.pot/xhyve/run.sh
+		// Write runfile to ~/.pot/xhyve/runFreeBSD.sh
 		xhyveRunFilePath := potDirPath + "/xhyve/runFreeBSD.sh"
 
 		err = ioutil.WriteFile(xhyveRunFilePath, []byte(runFile), 0664)
@@ -145,7 +139,7 @@ func runXhyve() error {
 			nil,
 		},
 	}
-	process, err := os.StartProcess(home+"/.pot/xhyve/run.sh", []string{home + "/.pot/xhyve/run.sh"}, &attr)
+	process, err := os.StartProcess(home+"/.pot/xhyve/runFreeBSD.sh", []string{home + "/.pot/xhyve/runFreeBSD.sh"}, &attr)
 	if err == nil {
 		// It is not clear from docs, but Realease actually detaches the process
 		err = process.Release()
@@ -232,10 +226,7 @@ func extractTarGz(gzipStream io.Reader) {
 			outFile.Close()
 
 		default:
-			log.Fatalf(
-				"ExtractTarGz: uknown type: %s in %s",
-				header.Typeflag,
-				header.Name)
+			log.Fatal("ExtractTarGz: uknown type:", header.Typeflag, " in ", header.Name)
 		}
 
 	}

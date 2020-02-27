@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"os/user"
@@ -10,6 +12,8 @@ import (
 
 	"github.com/bmatcuk/go-vagrant"
 )
+
+//TODO: May need to rename this functions changing Vagrant to VM now that it includes xhyve.
 
 func initializeVagrant(vmType string, ip string, verbose bool) {
 
@@ -154,7 +158,6 @@ end`
 }
 
 func redirectToVagrant(args []string) {
-	//vagrantID := getVagrantID()
 	vagrantDirPath := getVagrantDirPath()
 	configSSHFile := vagrantDirPath + "sshConfig"
 	if _, err := os.Stat(configSSHFile); os.IsNotExist(err) {
@@ -181,18 +184,24 @@ func redirectToVagrant(args []string) {
 func connectToVagrant() {
 	vagrantDirPath := getVagrantDirPath()
 	configSSHFile := vagrantDirPath + "sshConfig"
-	if _, err := os.Stat(configSSHFile); os.IsNotExist(err) {
-		createConfigCmd := "cd " + vagrantDirPath + "&& vagrant ssh-config > " + configSSHFile
-		configCmd := exec.Command("bash", "-c", createConfigCmd)
-		configCmd.Stdout = os.Stdout
-		configCmd.Stdin = os.Stdin
-		configCmd.Stderr = os.Stderr
-		configCmd.Run()
-		configCmd.Wait()
+	VMType := checkVMType()
+	if VMType == "vagrant" {
+		if _, err := os.Stat(configSSHFile); os.IsNotExist(err) {
+			createConfigCmd := "cd " + vagrantDirPath + "&& vagrant ssh-config > " + configSSHFile
+			configCmd := exec.Command("bash", "-c", createConfigCmd)
+			configCmd.Stdout = os.Stdout
+			configCmd.Stdin = os.Stdin
+			configCmd.Stderr = os.Stderr
+			configCmd.Run()
+			configCmd.Wait()
+		}
+	} else if VMType == "xhyve" {
+		if _, err := os.Stat(configSSHFile); os.IsNotExist(err) {
+			log.Fatal("ERROR: sshConfig file does not exists for xhyve machine")
+		}
 	}
 
 	termCmd := "ssh -F " + configSSHFile + " potMachine "
-	//termCmd := "cd " + vagrantDirPath + "&& vagrant ssh"
 	cmd := exec.Command("bash", "-c", termCmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
@@ -201,48 +210,61 @@ func connectToVagrant() {
 	cmd.Wait()
 }
 
-func destroyVagrant(verbose bool) {
-	vagrantDirPath := getVagrantDirPath()
-	//TODO: Check if vm is not vagrant
-
-	client, err := vagrant.NewVagrantClient(vagrantDirPath)
+func checkVMType() string {
+	termCmd := "ps aux | grep potMachine"
+	cmd := exec.Command("bash", "-c", termCmd)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println("ERROR: Error: No enviroment detected.")
-		return
+		fmt.Println("Error getting information on the VM type with err: ", err)
+		log.Fatal(err)
 	}
-	destroyCmd := client.Destroy()
-	destroyCmd.Verbose = verbose
-	if err := destroyCmd.Run(); err != nil {
-		fmt.Println("ERROR: Error running vagrant with err: ", err)
-		return
-	}
-	if destroyCmd.Error != nil {
-		fmt.Println("ERROR: Upcmd error: ", err)
-		return
+	cmd.Wait()
+	commandResult := out.String()
+
+	//ps aux | grep potMachine | grep virtualbox
+	if strings.Contains(commandResult, "xhyve") {
+		return "xhyve"
 	}
 
-	err = os.Remove(vagrantDirPath + "Vagrantfile")
-	if err != nil {
-		fmt.Println("Error removing Vagrantfile from ", vagrantDirPath)
-	}
-
-	os.Remove(vagrantDirPath + "sshConfig")
+	return "vagrant"
 }
 
-func getVagrantID() string {
+func destroyVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
-	dat, err := ioutil.ReadFile(vagrantDirPath + ".vagrant/machines/potMachine/libvirt/index_uuid")
-	if err != nil {
-		//Not a vagrant machine.
-		dat, err := ioutil.ReadFile(vagrantDirPath + ".vagrant/machines/potMachine/virtualbox/index_uuid")
-		if err != nil {
-			fmt.Println("ERROR: Unable to read index_uuid file with err: \n", err)
-			return ""
-		}
-		return string(dat[:6])
 
+	VMType := checkVMType()
+	if VMType == "vagrant" {
+
+		client, err := vagrant.NewVagrantClient(vagrantDirPath)
+		if err != nil {
+			fmt.Println("ERROR: Error: No enviroment detected.")
+			return
+		}
+		destroyCmd := client.Destroy()
+		destroyCmd.Verbose = verbose
+		if err := destroyCmd.Run(); err != nil {
+			fmt.Println("ERROR: Error running vagrant with err: ", err)
+			return
+		}
+		if destroyCmd.Error != nil {
+			fmt.Println("ERROR: Upcmd error: ", err)
+			return
+		}
+
+		err = os.Remove(vagrantDirPath + "Vagrantfile")
+		if err != nil {
+			fmt.Println("Error removing Vagrantfile from ", vagrantDirPath)
+		}
+
+		os.Remove(vagrantDirPath + "sshConfig")
+	} else if VMType == "xhyve" {
+		//Connect to xhyve and poweroff
+		redirectToVagrant([]string{"poweroff"})
+
+		//TODO: Remove all files from ~/.pot/xhyve
 	}
-	return string(dat[:6])
 }
 
 func getVagrantDirPath() string {
@@ -272,58 +294,82 @@ func getUserHome() string {
 func startVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
 	//TODO: Check if vm is not vagrant
+	if _, err := os.Stat(vagrantDirPath + "/xhyve/runFreeBSD.sh"); os.IsNotExist(err) {
 
-	client, err := vagrant.NewVagrantClient(vagrantDirPath)
-	if err != nil {
-		fmt.Println("ERROR: Error starting potMachine")
-		return
-	}
+		client, err := vagrant.NewVagrantClient(vagrantDirPath)
+		if err != nil {
+			fmt.Println("ERROR: Error starting potMachine")
+			return
+		}
 
-	upCmd := client.Up()
-	upCmd.Verbose = verbose
-	if err := upCmd.Run(); err != nil {
-		fmt.Println("ERROR: Error running vagrant with err: ", err)
-	}
-	if upCmd.Error != nil {
-		fmt.Println("ERROR: Startcmd error: ", err)
+		upCmd := client.Up()
+		upCmd.Verbose = verbose
+		if err := upCmd.Run(); err != nil {
+			fmt.Println("ERROR: Error running vagrant with err: ", err)
+		}
+		if upCmd.Error != nil {
+			fmt.Println("ERROR: Startcmd error: ", err)
+		}
+	} else {
+		err := runXhyve()
+		if err != nil {
+			log.Fatal("ERROR: Can not start xhyve VM with err: ", err)
+		}
 	}
 }
 
 func stopVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
-	//TODO: Check if vm is not vagrant
-	client, err := vagrant.NewVagrantClient(vagrantDirPath)
-	if err != nil {
-		fmt.Println("ERROR: Error stoping potMachine")
-		return
-	}
 
-	upCmd := client.Halt()
-	upCmd.Verbose = verbose
-	if err := upCmd.Run(); err != nil {
-		fmt.Println("ERROR: Error running vagrant with err: ", err)
-	}
-	if upCmd.Error != nil {
-		fmt.Println("ERROR: Stopcmd error: ", err)
+	VMType := checkVMType()
+	if VMType == "vagrant" {
+
+		client, err := vagrant.NewVagrantClient(vagrantDirPath)
+		if err != nil {
+			fmt.Println("ERROR: Error stoping potMachine")
+			return
+		}
+
+		upCmd := client.Halt()
+		upCmd.Verbose = verbose
+		if err := upCmd.Run(); err != nil {
+			fmt.Println("ERROR: Error running vagrant with err: ", err)
+		}
+		if upCmd.Error != nil {
+			fmt.Println("ERROR: Stopcmd error: ", err)
+		}
+	} else if VMType == "xhyve" {
+		//Connect to xhyve and poweroff
+		redirectToVagrant([]string{"poweroff"})
 	}
 }
 
 func reloadVagrant(verbose bool) {
 	vagrantDirPath := getVagrantDirPath()
 	//TODO: Check if vm is not vagrant
+	VMType := checkVMType()
+	if VMType == "vagrant" {
+		client, err := vagrant.NewVagrantClient(vagrantDirPath)
+		if err != nil {
+			fmt.Println("ERROR: Error reloading potMachine")
+			return
+		}
 
-	client, err := vagrant.NewVagrantClient(vagrantDirPath)
-	if err != nil {
-		fmt.Println("ERROR: Error reloading potMachine")
-		return
-	}
-
-	upCmd := client.Reload()
-	upCmd.Verbose = verbose
-	if err := upCmd.Run(); err != nil {
-		fmt.Println("ERROR: Error running vagrant with err: ", err)
-	}
-	if upCmd.Error != nil {
-		fmt.Println("ERROR: Stopcmd error: ", err)
+		upCmd := client.Reload()
+		upCmd.Verbose = verbose
+		if err := upCmd.Run(); err != nil {
+			fmt.Println("ERROR: Error running vagrant with err: ", err)
+		}
+		if upCmd.Error != nil {
+			fmt.Println("ERROR: Stopcmd error: ", err)
+		}
+	} else if VMType == "xhyve" {
+		//Stop xhyve VM
+		redirectToVagrant([]string{"poweroff"})
+		//Start xhyve VM
+		err := runXhyve()
+		if err != nil {
+			log.Fatal("ERROR: Xhyve is not able to start with err: ", err)
+		}
 	}
 }
