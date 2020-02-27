@@ -210,3 +210,21 @@ Options:
   -ip -- Assigns an IP to the potMachine
   -v -- Verbose
 ```
+
+# EXPERIMENTAL MacOS #
+
+## Xhyve Support for MacOS ##
+
+### Install xhyve ###
+
+```bash
+brew install xhyve
+```
+
+### Compile the potMachine binary ###
+
+```bash
+git clone https://github.com/ebarriosjr/potMachine.git
+cd potMachine
+GOOS=darwin go build -o pot .
+```
