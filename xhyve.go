@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -36,11 +38,35 @@ func initializeXhyve(verbose bool) {
 	}
 
 	//untar xhyve.tar.gz into ~/.pot/xhyve
+	r, err := os.Open(tarPath)
+	if err != nil {
+		fmt.Println("Error openning tar file with err: ", err)
+	}
+	extractTarGz(r)
+
+	// delete file
+	err = os.Remove(xhyveDirPath + "/metadata.json")
+	if err != nil {
+		fmt.Println("Error removing files with err: ", err)
+	}
+
+	// delete file
+	err = os.Remove(xhyveDirPath + "/initrd.gz")
+	if err != nil {
+		fmt.Println("Error removing files with err: ", err)
+	}
+
+	// delete file
+	err = os.Remove(xhyveDirPath + "/xhyve.tar.gz")
+	if err != nil {
+		fmt.Println("Error removing files with err: ", err)
+	}
+
 	//Check if runfile exists
 	//Create run file
 	runFile := `#/bin/sh
 UUID="-U potpotpo-potp-potp-potp-potmachinepp"
-USERBOOT="~/.pot/xhyve/userboot.so"
+USERBOOT="~/.pot/xhyve/vmlinuz"
 IMG="~/.pot/xhyve/block0.img"
 KERNELENV=""
 
@@ -60,7 +86,7 @@ xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$I
 	go netcat(&wg)
 
 	//Initializa xhyve vm
-	err := runXhyve()
+	err = runXhyve()
 	if err != nil {
 		fmt.Println("Error creating xhyve vm with err: ", err)
 		return
@@ -161,4 +187,48 @@ func downloadFile(filepath string, url string) error {
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
 	return err
+}
+
+func extractTarGz(gzipStream io.Reader) {
+	uncompressedStream, err := gzip.NewReader(gzipStream)
+	if err != nil {
+		log.Fatal("ExtractTarGz: NewReader failed")
+	}
+
+	tarReader := tar.NewReader(uncompressedStream)
+
+	for true {
+		header, err := tarReader.Next()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.Mkdir(header.Name, 0755); err != nil {
+				log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
+			}
+		case tar.TypeReg:
+			outFile, err := os.Create(header.Name)
+			if err != nil {
+				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
+			}
+			if _, err := io.Copy(outFile, tarReader); err != nil {
+				log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
+			}
+			outFile.Close()
+
+		default:
+			log.Fatalf(
+				"ExtractTarGz: uknown type: %s in %s",
+				header.Typeflag,
+				header.Name)
+		}
+
+	}
 }
