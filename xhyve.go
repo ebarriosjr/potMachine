@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +13,10 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
+
+	"github.com/machinebox/progress"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -204,24 +209,41 @@ func netcat() {
 }
 
 func downloadFile(filepath string, url string) error {
-
-	// Get the data
-	resp, err := http.Get(url)
+	resp, err := http.DefaultClient.Get(url)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to download file")
 	}
 	defer resp.Body.Close()
+	contentLengthHeader := resp.Header.Get("Content-Length")
+	if contentLengthHeader == "" {
+		return errors.New("cannot determine progress without Content-Length")
+	}
+	size, err := strconv.ParseInt(contentLengthHeader, 10, 64)
+	if err != nil {
+		return errors.Wrapf(err, "bad Content-Length %q", contentLengthHeader)
+	}
+	ctx := context.Background()
+	r := progress.NewReader(resp.Body)
+	go func() {
+		progressChan := progress.NewTicker(ctx, r, size, 1*time.Second)
+		for p := range progressChan {
+			fmt.Printf("\r==> %v remaining...", p.Remaining().Round(time.Second))
+		}
+		fmt.Println("\r==> Download is completed")
+	}()
 
-	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	return err
+	if _, err := io.Copy(out, r); err != nil {
+		return errors.Wrap(err, "failed to read body")
+	}
+
+	return nil
+
 }
 
 func extractTarGz(gzipStream io.Reader, xhyveDirPath string) {
