@@ -287,6 +287,7 @@ func destroyVagrant(verbose bool) {
 		os.Remove(xhyveDirPath + "/vagrant.pub")
 		os.Remove(xhyveDirPath + "/._private_key")
 		os.Remove(xhyveDirPath + "/._vagrant_pub")
+		os.Remove(xhyveDirPath + "/../sshConfig")
 
 		removeNFS()
 	}
