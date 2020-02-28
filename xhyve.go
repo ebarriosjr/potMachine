@@ -170,21 +170,20 @@ func runXhyve() error {
 }
 
 func editNFSExports(UUID int, potDir string) {
-	//Probably gonna fail because of permission issues
-	f, err := os.OpenFile("/etc/exports", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	textToAppend := `# POTMACHINE-Xhyve-Begin
+	termCmd := `sudo tee -a /etc/exports << 'EOF'
+# POTMACHINE-Xhyve-Begin
 ` + potDir + ` -alldirs -mapall=` + string(UUID) + `
 # POTMACHINE-Xhyve-END
-`
-
-	if _, err := f.WriteString(textToAppend); err != nil {
-		log.Fatal("Can not write to /etc/exports file with err: ", err)
+EOF`
+	cmd := exec.Command("bash", "-c", termCmd)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Error enabeling NFS with err: ", err)
+		log.Fatal(err)
 	}
+	cmd.Wait()
 }
 
 func enableNFS() {
