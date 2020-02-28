@@ -28,19 +28,19 @@ func initializeXhyve(verbose bool) {
 
 	//Download from github respo xhyve.tar.zg -> ~/.pot/xhyve
 	fileURL := "https://app.vagrantup.com/ebarriosjr/boxes/FreeBSD12.1-zfs/versions/0.0.1/providers/xhyve.box"
-	tarPath := xhyveDirPath + "/xhyve.tar.gz"
+	tarPath := xhyveDirPath + "/potMachine.tar.gz"
 
-	fmt.Println("==> Checking if tar file already exists on ~/.pot/xhyve/xhyve.tar.gz")
+	fmt.Println("==> Checking if tar file already exists on ~/.pot/xhyve/potMachine.tar.gz")
 	if _, err := os.Stat(tarPath); os.IsNotExist(err) {
-		fmt.Println("==> Downloading tar file to ~/.pot/xhyve/xhyve.tar.gz")
+		fmt.Println("==> Downloading tar file to ~/.pot/xhyve/potMachine.tar.gz")
 		if err := downloadFile(tarPath, fileURL); err != nil {
 			fmt.Println("Error downloading tar file from vagrant cloud with err: ", err)
 			log.Fatal()
 		}
 	}
 
-	fmt.Println("==> Extracting tar file ~/.pot/xhyve/xhyve.tar.gz to ~/.pot/xhyve/")
-	//untar xhyve.tar.gz into ~/.pot/xhyve
+	fmt.Println("==> Extracting tar file ~/.pot/xhyve/potMachine.tar.gz to ~/.pot/xhyve/")
+	//untar potMachine.tar.gz into ~/.pot/xhyve
 	r, err := os.Open(tarPath)
 	if err != nil {
 		fmt.Println("Error openning tar file with err: ", err)
