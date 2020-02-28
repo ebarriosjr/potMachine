@@ -219,19 +219,19 @@ func checkVMType() string {
 	cmd.Wait()
 	commandResult := out.String()
 
-        if commandResult == "" {
-                termCmd := "ps aux | grep xhyve | grep -v grep"
-                cmd := exec.Command("bash", "-c", termCmd)
-                var out bytes.Buffer
-                cmd.Stdout = &out
-                cmd.Run()
-                cmd.Wait()
-	        commandResult := out.String()
+	if commandResult == "" {
+		termCmd := "ps aux | grep xhyve | grep -v grep"
+		cmd := exec.Command("bash", "-c", termCmd)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Run()
+		cmd.Wait()
+		commandResult := out.String()
 
-	        if commandResult != "" {
-		      return "xhyve"
-                }
-        }
+		if commandResult != "" {
+			return "xhyve"
+		}
+	}
 
 	return "vagrant"
 }
@@ -265,7 +265,7 @@ func destroyVagrant(verbose bool) {
 
 		os.Remove(vagrantDirPath + "sshConfig")
 	} else if VMType == "xhyve" {
-                fmt.Println("==> Powering off xhyve VM...")
+		fmt.Println("==> Powering off xhyve VM...")
 		//Connect to xhyve and poweroff
 		redirectToVagrant([]string{"sudo poweroff"})
 
@@ -323,7 +323,7 @@ func startVagrant(verbose bool) {
 			fmt.Println("ERROR: Startcmd error: ", err)
 		}
 	} else {
-                fmt.Println("==> Starting Xhyve VM...")
+		fmt.Println("==> Starting Xhyve VM...")
 		err := runXhyve()
 		if err != nil {
 			log.Fatal("ERROR: Can not start xhyve VM with err: ", err)
