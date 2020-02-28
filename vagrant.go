@@ -211,22 +211,27 @@ func connectToVagrant() {
 }
 
 func checkVMType() string {
-	termCmd := "ps aux | grep potMachine"
+	termCmd := "ps aux | grep potMachine | grep -v grep"
 	cmd := exec.Command("bash", "-c", termCmd)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		fmt.Println("Error getting information on the VM type with err: ", err)
-		log.Fatal(err)
-	}
+	cmd.Run()
 	cmd.Wait()
 	commandResult := out.String()
 
-	//ps aux | grep potMachine | grep virtualbox
-	if strings.Contains(commandResult, "xhyve") {
-		return "xhyve"
-	}
+        if commandResult == "" {
+                termCmd := "ps aux | grep xhyve | grep -v grep"
+                cmd := exec.Command("bash", "-c", termCmd)
+                var out bytes.Buffer
+                cmd.Stdout = &out
+                cmd.Run()
+                cmd.Wait()
+	        commandResult := out.String()
+
+	        if commandResult != "" {
+		      return "xhyve"
+                }
+        }
 
 	return "vagrant"
 }
@@ -260,6 +265,7 @@ func destroyVagrant(verbose bool) {
 
 		os.Remove(vagrantDirPath + "sshConfig")
 	} else if VMType == "xhyve" {
+                fmt.Println("==> Powering off xhyve VM...")
 		//Connect to xhyve and poweroff
 		redirectToVagrant([]string{"sudo poweroff"})
 
@@ -347,7 +353,7 @@ func stopVagrant(verbose bool) {
 		}
 	} else if VMType == "xhyve" {
 		//Connect to xhyve and poweroff
-		redirectToVagrant([]string{"poweroff"})
+		redirectToVagrant([]string{"sudo poweroff"})
 	}
 }
 
