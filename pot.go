@@ -41,7 +41,7 @@ func redirectToPot(args []string) {
 	}
 
 	arguments := strings.Join(args, " ")
-	fmt.Println("Arguments: ", arguments)
+	//fmt.Println("Arguments: ", arguments)
 
 	termCmd := "ssh -t -q -F " + configSSHFile + " potMachine sudo pot " + arguments
 
