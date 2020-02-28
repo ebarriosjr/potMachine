@@ -23,6 +23,7 @@ func initializeXhyve(verbose bool) {
 	xhyveDirPath := potDirPath + "/xhyve"
 
 	if _, err := os.Stat(xhyveDirPath); os.IsNotExist(err) {
+		fmt.Println("==> Creating ~/.pot/xhyve directory")
 		os.Mkdir(xhyveDirPath, 0664)
 	}
 
@@ -30,13 +31,16 @@ func initializeXhyve(verbose bool) {
 	fileURL := "https://app.vagrantup.com/ebarriosjr/boxes/FreeBSD12.1-zfs/versions/0.0.1/providers/xhyve.box"
 	tarPath := xhyveDirPath + "/xhyve.tar.gz"
 
+	fmt.Println("==> Checking if tar file already exists on ~/.pot/xhyve/xhyve.tar.gz")
 	if _, err := os.Stat(tarPath); os.IsNotExist(err) {
+		fmt.Println("==> Downloading tar file to ~/.pot/xhyve/xhyve.tar.gz")
 		if err := downloadFile(tarPath, fileURL); err != nil {
-			fmt.Println("Error downloading tar file from github with err: ", err)
+			fmt.Println("Error downloading tar file from vagrant cloud with err: ", err)
 			log.Fatal()
 		}
 	}
 
+	fmt.Println("==> Extracting tar file ~/.pot/xhyve/xhyve.tar.gz to ~/.pot/xhyve/")
 	//untar xhyve.tar.gz into ~/.pot/xhyve
 	r, err := os.Open(tarPath)
 	if err != nil {
@@ -44,6 +48,7 @@ func initializeXhyve(verbose bool) {
 	}
 	extractTarGz(r)
 
+	fmt.Println("==> Cleaning up ~/.pot/xhyve/")
 	// delete file
 	err = os.Remove(xhyveDirPath + "/metadata.json")
 	if err != nil {
@@ -61,6 +66,16 @@ func initializeXhyve(verbose bool) {
 	if err != nil {
 		fmt.Println("Error removing files with err: ", err)
 	}
+
+	fmt.Println("==> Enabeling nfs mountpoint")
+	//Enable NFS on mac sudo nfsd enable
+	enableNFS()
+
+	//GET uid of current user
+	UUID := os.Getuid()
+
+	//Edit NFS /etc/exports
+	editNFSExports(UUID, potDirPath)
 
 	//Check if runfile exists
 	var runFile string
@@ -152,6 +167,37 @@ func runXhyve() error {
 		return err
 	}
 	return nil
+}
+
+func editNFSExports(UUID int, potDir string) {
+	//Probably gonna fail because of permission issues
+	f, err := os.OpenFile("/etc/exports", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	textToAppend := `# POTMACHINE-Xhyve-Begin
+` + potDir + ` -alldirs -mapall=` + string(UUID) + `
+# POTMACHINE-Xhyve-END
+`
+
+	if _, err := f.WriteString(textToAppend); err != nil {
+		log.Fatal("Can not write to /etc/exports file with err: ", err)
+	}
+}
+
+func enableNFS() {
+	termCmd := "sudo nfsd enable"
+	cmd := exec.Command("bash", "-c", termCmd)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Error enabeling NFS with err: ", err)
+		log.Fatal(err)
+	}
+	cmd.Wait()
 }
 
 func netcat(wg *sync.WaitGroup) {

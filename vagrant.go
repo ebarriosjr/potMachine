@@ -264,6 +264,12 @@ func destroyVagrant(verbose bool) {
 		redirectToVagrant([]string{"poweroff"})
 
 		//TODO: Remove all files from ~/.pot/xhyve
+
+		//TODO: Edit NFS /etc/exports
+		//Remove:
+		//# POTMACHINE-Xhyve-Begin
+		// ...
+		//# POTMACHINE-Xhyve-END
 	}
 }
 
