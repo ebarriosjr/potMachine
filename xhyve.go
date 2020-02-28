@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"sync"
 )
 
 var (
@@ -24,7 +23,7 @@ func initializeXhyve(verbose bool) {
 
 	if _, err := os.Stat(xhyveDirPath); os.IsNotExist(err) {
 		fmt.Println("==> Creating ~/.pot/xhyve directory")
-		os.Mkdir(xhyveDirPath, 0664)
+		os.Mkdir(xhyveDirPath, 0775)
 	}
 
 	//Download from github respo xhyve.tar.zg -> ~/.pot/xhyve
@@ -46,30 +45,17 @@ func initializeXhyve(verbose bool) {
 	if err != nil {
 		fmt.Println("Error openning tar file with err: ", err)
 	}
-	extractTarGz(r)
+	extractTarGz(r,xhyveDirPath+"/")
 
 	fmt.Println("==> Cleaning up ~/.pot/xhyve/")
 	// delete file
-	err = os.Remove(xhyveDirPath + "/metadata.json")
-	if err != nil {
-		fmt.Println("Error removing files with err: ", err)
-	}
-
-	// delete file
-	err = os.Remove(xhyveDirPath + "/initrd.gz")
-	if err != nil {
-		fmt.Println("Error removing files with err: ", err)
-	}
-
-	// delete file
-	err = os.Remove(xhyveDirPath + "/vmlinuz")
-	if err != nil {
-		fmt.Println("Error removing files with err: ", err)
-	}
+	os.Remove(xhyveDirPath + "/metadata.json")
 
 	fmt.Println("==> Enabeling nfs mountpoint")
 	//Enable NFS on mac sudo nfsd enable
 	enableNFS()
+
+        chmodPrivateKey()
 
 	//GET uid of current user
 	UUID := os.Getuid()
@@ -82,33 +68,31 @@ func initializeXhyve(verbose bool) {
 	if _, err := os.Stat(xhyveDirPath + "/runFreeBSD.sh"); os.IsNotExist(err) {
 		//Create run file
 		runFile = `#/bin/sh
-UUID="-U potpotpo-potp-potp-potp-potmachinepp"
-USERBOOT="~/.pot/xhyve/vmlinuz"
-IMG="~/.pot/xhyve/block0.img"
+#UUID="-U potpotpo-potp-potp-potp-potmachinepp"
+USERBOOT="`+potDirPath+`/xhyve/userboot.so"
+IMG="`+potDirPath+`/xhyve/block0.img"
 KERNELENV=""
 
 MEM="-m 4G"
 SMP="-c 2"
 PCI_DEV="-s 0:0,hostbridge -s 31,lpc"
-NET="-s 2:0.virtio-net"
+NET="-s 2:0,virtio-net"
 IMG_HDD="-s 4:0,virtio-blk,$IMG"
 LPC_DEV="-l com1,stdio"
 ACPI="-A"
 
-xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV"
+nohup xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV" </dev/null >/dev/null 2>&1 &
 `
 		// Write runfile to ~/.pot/xhyve/runFreeBSD.sh
 		xhyveRunFilePath := potDirPath + "/xhyve/runFreeBSD.sh"
 
-		err = ioutil.WriteFile(xhyveRunFilePath, []byte(runFile), 0664)
+		err = ioutil.WriteFile(xhyveRunFilePath, []byte(runFile), 0775)
 		if err != nil {
 			fmt.Println("ERROR: Error writting file to disk with err: \n", err)
 			return
 		}
 	}
-	//wg.Add()
-	var wg sync.WaitGroup
-	go netcat(&wg)
+	
 
 	//Initializa xhyve vm
 	err = runXhyve()
@@ -116,7 +100,8 @@ xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$I
 		fmt.Println("Error creating xhyve vm with err: ", err)
 		return
 	}
-	wg.Wait()
+        
+        netcat()
 
 	//generate sshConfig file
 	sshConfig := `Host potMachine
@@ -132,38 +117,64 @@ xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$I
 `
 	xhyvesshConfigFilePath := potDirPath + "/sshConfig"
 
-	err = ioutil.WriteFile(xhyvesshConfigFilePath, []byte(sshConfig), 0664)
+	err = ioutil.WriteFile(xhyvesshConfigFilePath, []byte(sshConfig), 0775)
 	if err != nil {
 		fmt.Println("ERROR: Error writting file to disk with err: \n", err)
 		return
 	}
 }
 
-func runXhyve() error {
-	home, err := os.UserHomeDir()
+func chmodPrivateKey() {
+        privateKey,_ := os.UserHomeDir()
+        privateKey = privateKey + "/.pot/xhyve/private_key"
+        command := "chmod 600 "+privateKey
+	cmd := exec.Command("bash", "-c", command)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println("Error getting user home path with err:", err)
-		return err
+		fmt.Println("Error starting Xhyve VM with err: ", err)
 	}
-	var attr = os.ProcAttr{
-		Dir: ".",
-		Env: os.Environ(),
-		Files: []*os.File{
-			os.Stdin,
-			nil,
-			nil,
-		},
-	}
-	process, err := os.StartProcess(home+"/.pot/xhyve/runFreeBSD.sh", []string{home + "/.pot/xhyve/runFreeBSD.sh"}, &attr)
-	if err == nil {
-		// It is not clear from docs, but Realease actually detaches the process
-		err = process.Release()
-		if err != nil {
-			fmt.Println("Error releasing xhyve process with err: ", err.Error())
-			return err
-		}
-	} else {
-		fmt.Println("Error starting xhyve process with err: ", err.Error())
+}
+
+func runXhyve() error {
+//	home, err := os.UserHomeDir()
+//	if err != nil {
+//		fmt.Println("Error getting user home path with err:", err)
+//		return err
+//	}
+//	var attr = os.ProcAttr{
+//		Dir: ".",
+//		Env: os.Environ(),
+//		Files: []*os.File{
+//			os.Stdin,
+//			nil,
+//			nil,
+//		},
+//	}
+//	process, err := os.StartProcess(home+"/.pot/xhyve/runFreeBSD.sh", []string{home + "/.pot/xhyve/runFreeBSD.sh"}, &attr)
+//	if err == nil {
+//		// It is not clear from docs, but Realease actually detaches the process
+//		err = process.Release()
+//		if err != nil {
+//			fmt.Println("Error releasing xhyve process with err: ", err.Error())
+//			return err
+//		}
+//	} else {
+//		fmt.Println("Error starting xhyve process with err: ", err.Error())
+//		return err
+//	}
+//	return nil
+
+        potDirPath := getVagrantDirPath()
+        xhyveDirPath := potDirPath + "/xhyve"	
+        termCmd := `sudo `+ xhyveDirPath +`/runFreeBSD.sh`
+	cmd := exec.Command("bash", "-c", termCmd)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Error starting Xhyve VM with err: ", err)
 		return err
 	}
 	return nil
@@ -199,9 +210,8 @@ func enableNFS() {
 	cmd.Wait()
 }
 
-func netcat(wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func netcat() {
+        fmt.Println("==> Waiting for machine to start...")
 	termCmd := "nc -l 1234"
 	cmd := exec.Command("bash", "-c", termCmd)
 	var out bytes.Buffer
@@ -213,6 +223,7 @@ func netcat(wg *sync.WaitGroup) {
 	}
 	cmd.Wait()
 	xhyveIP = out.String()
+        fmt.Println("==> Machine started with ip: ",xhyveIP)
 }
 
 func downloadFile(filepath string, url string) error {
@@ -236,7 +247,7 @@ func downloadFile(filepath string, url string) error {
 	return err
 }
 
-func extractTarGz(gzipStream io.Reader) {
+func extractTarGz(gzipStream io.Reader, xhyveDirPath string) {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		log.Fatal("ExtractTarGz: NewReader failed")
@@ -257,11 +268,14 @@ func extractTarGz(gzipStream io.Reader) {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.Mkdir(header.Name, 0755); err != nil {
+                        if header.Name == "./" {
+                                break
+                        }
+			if err := os.Mkdir(xhyveDirPath+header.Name, 0755); err != nil {
 				log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
 			}
 		case tar.TypeReg:
-			outFile, err := os.Create(header.Name)
+			outFile, err := os.Create(xhyveDirPath+header.Name)
 			if err != nil {
 				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
 			}
@@ -271,7 +285,7 @@ func extractTarGz(gzipStream io.Reader) {
 			outFile.Close()
 
 		default:
-			log.Fatal("ExtractTarGz: uknown type:", header.Typeflag, " in ", header.Name)
+                        //fmt.Println("Ignoring file: ",header.Name)
 		}
 
 	}

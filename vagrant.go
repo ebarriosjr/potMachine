@@ -261,7 +261,7 @@ func destroyVagrant(verbose bool) {
 		os.Remove(vagrantDirPath + "sshConfig")
 	} else if VMType == "xhyve" {
 		//Connect to xhyve and poweroff
-		redirectToVagrant([]string{"poweroff"})
+		redirectToVagrant([]string{"sudo poweroff"})
 
 		//TODO: Remove all files from ~/.pot/xhyve
 
@@ -317,6 +317,7 @@ func startVagrant(verbose bool) {
 			fmt.Println("ERROR: Startcmd error: ", err)
 		}
 	} else {
+                fmt.Println("==> Starting Xhyve VM...")
 		err := runXhyve()
 		if err != nil {
 			log.Fatal("ERROR: Can not start xhyve VM with err: ", err)
