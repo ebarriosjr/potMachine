@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
+	"time"
 
 	"github.com/bmatcuk/go-vagrant"
 )
@@ -268,15 +269,49 @@ func destroyVagrant(verbose bool) {
 		fmt.Println("==> Powering off xhyve VM...")
 		//Connect to xhyve and poweroff
 		redirectToVagrant([]string{"sudo poweroff"})
+		fmt.Println("==> Waiting for VM to power off...")
+		for checkVMAlive() {
+			fmt.Println("==> ...")
+			time.Sleep(1 * time.Second)
+		}
 
+		potDirPath := getVagrantDirPath()
+		xhyveDirPath := potDirPath + "/xhyve"
 		//TODO: Remove all files from ~/.pot/xhyve
+		fmt.Println("==> Cleaning up ~/.pot/xhyve/")
+		// delete file
+		os.Remove(xhyveDirPath + "/block0.img")
+		os.Remove(xhyveDirPath + "/userboot.so")
+		os.Remove(xhyveDirPath + "/private_key")
+		os.Remove(xhyveDirPath + "/runFreeBSD.sh")
+		os.Remove(xhyveDirPath + "/vagrant.pub")
+		os.Remove(xhyveDirPath + "/._private_key")
+		os.Remove(xhyveDirPath + "/._vagrant_pub")
 
-		//TODO: Edit NFS /etc/exports
-		//Remove:
-		//# POTMACHINE-Xhyve-Begin
-		// ...
-		//# POTMACHINE-Xhyve-END
+		removeNFS()
 	}
+}
+
+func checkVMAlive() bool {
+	command := "ps aux | grep xhyve | grep -v grep"
+	cmd := exec.Command("bash", "-c", command)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Run()
+	cmd.Wait()
+	if out.String() != "" {
+		return true
+	}
+	return false
+}
+
+func removeNFS() {
+	removeNFS := `sudo sed -i '/^# POTMACHINE-Xhyve-Begin/,/^# POTMACHINE-Xhyve-END/d;' /etc/exports`
+	cmd := exec.Command("bash", "-c", removeNFS)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Run()
+	cmd.Wait()
 }
 
 func getVagrantDirPath() string {
