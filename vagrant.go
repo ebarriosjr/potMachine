@@ -272,7 +272,7 @@ func destroyVagrant(verbose bool) {
 		fmt.Println("==> Waiting for VM to power off...")
 		for checkVMAlive() {
 			fmt.Println("==> ...")
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 
 		potDirPath := getVagrantDirPath()
@@ -289,6 +289,7 @@ func destroyVagrant(verbose bool) {
 		os.Remove(xhyveDirPath + "/._vagrant_pub")
 		os.Remove(xhyveDirPath + "/../sshConfig")
 
+		fmt.Println("==> Removing NFS share from /etc/exports")
 		removeNFS()
 	}
 }
