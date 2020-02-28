@@ -68,7 +68,7 @@ func initializeXhyve(verbose bool) {
 	if _, err := os.Stat(xhyveDirPath + "/runFreeBSD.sh"); os.IsNotExist(err) {
 		//Create run file
 		runFile = `#/bin/sh
-#UUID="-U potpotpo-potp-potp-potp-potmachinepp"
+UUID="-U efc58796-25ec-4003-b216-f20be8100685"
 USERBOOT="` + potDirPath + `/xhyve/userboot.so"
 IMG="` + potDirPath + `/xhyve/block0.img"
 KERNELENV=""

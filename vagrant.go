@@ -221,7 +221,7 @@ func checkVMType() string {
 	commandResult := out.String()
 
 	if commandResult == "" {
-		termCmd := "ps aux | grep xhyve | grep -v grep"
+		termCmd := "ps aux | grep xhyve | grep -v grep | grep efc58796-25ec-4003-b216-f20be8100685"
 		cmd := exec.Command("bash", "-c", termCmd)
 		var out bytes.Buffer
 		cmd.Stdout = &out
