@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 )
 
 var (
@@ -59,9 +60,10 @@ func initializeXhyve(verbose bool) {
 
 	//GET uid of current user
 	UUID := os.Getuid()
+	UUIDString := strconv.Itoa(UUID)
 
 	//Edit NFS /etc/exports
-	editNFSExports(UUID, potDirPath)
+	editNFSExports(UUIDString, potDirPath)
 
 	//Check if runfile exists
 	var runFile string
@@ -155,10 +157,10 @@ func runXhyve() error {
 	return nil
 }
 
-func editNFSExports(UUID int, potDir string) {
+func editNFSExports(UUID string, potDir string) {
 	termCmd := `sudo tee -a /etc/exports << 'EOF'
 # POTMACHINE-Xhyve-Begin
-` + potDir + ` -alldirs -mapall=` + string(UUID) + `
+` + potDir + ` -alldirs -mapall=` + UUID + `
 # POTMACHINE-Xhyve-END
 EOF`
 	cmd := exec.Command("bash", "-c", termCmd)
