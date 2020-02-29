@@ -241,6 +241,7 @@ func checkVMType() string {
 }
 
 func destroyVagrant(verbose bool) {
+	//TODO: Needs to be modify to be able to destroy potMachine while it is sopped.
 	vagrantDirPath := getVagrantDirPath()
 
 	VMType := checkVMType()
