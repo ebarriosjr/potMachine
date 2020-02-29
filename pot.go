@@ -25,7 +25,7 @@ func redirectToPot(args []string) {
 				// The program has exited with an exit code != 0
 
 				if _, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					fmt.Println("No enviroment set on this machine.\nPlease run pot machine init [virtualbox/libvirt/nomad]")
+					fmt.Println("==> No enviroment set on this machine or Xhyve VM not running\n==> Please run pot machine init [virtualbox/libvirt/xhyve/nomad]\n==> Or \"pot machine start\" if xhyve is initialized on the machine")
 					err = os.Remove(vagrantDirPath + "sshConfig")
 					if err != nil {
 						fmt.Println("Error removing ssConfig file from ", vagrantDirPath)
@@ -41,6 +41,7 @@ func redirectToPot(args []string) {
 	}
 
 	arguments := strings.Join(args, " ")
+	//fmt.Println("Arguments: ", arguments)
 
 	termCmd := "ssh -t -q -F " + configSSHFile + " potMachine sudo pot " + arguments
 
