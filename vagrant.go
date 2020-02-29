@@ -312,7 +312,7 @@ func checkVMAlive() bool {
 }
 
 func removeNFS() {
-	removeNFS := `sudo sed -i '/^# POTMACHINE-Xhyve-Begin/,/^# POTMACHINE-Xhyve-END/d;' /etc/exports`
+	removeNFS := `sudo sed -i ".bak" '/^#\ POTMACHINE-Xhyve-Begin/,/^#\ POTMACHINE-Xhyve-END/d;' /etc/exports`
 	cmd := exec.Command("bash", "-c", removeNFS)
 	var out bytes.Buffer
 	cmd.Stdout = &out
