@@ -212,6 +212,8 @@ func connectToVagrant() {
 }
 
 func checkVMType() string {
+	//vagrantDirPath := getVagrantDirPath()
+
 	termCmd := "ps aux | grep potMachine | grep -v grep"
 	cmd := exec.Command("bash", "-c", termCmd)
 	var out bytes.Buffer
@@ -221,6 +223,7 @@ func checkVMType() string {
 	commandResult := out.String()
 
 	if commandResult == "" {
+		//termCmd := "cat " + vagrantDirPath + "grep IdentityFile"
 		termCmd := "ps aux | grep xhyve | grep -v grep | grep efc58796-25ec-4003-b216-f20be8100685"
 		cmd := exec.Command("bash", "-c", termCmd)
 		var out bytes.Buffer
@@ -266,19 +269,19 @@ func destroyVagrant(verbose bool) {
 
 		os.Remove(vagrantDirPath + "sshConfig")
 	} else if VMType == "xhyve" {
-		fmt.Println("==> Powering off xhyve VM...")
+		fmt.Println("==> Powering off xhyve VM.")
 		//Connect to xhyve and poweroff
 		redirectToVagrant([]string{"sudo poweroff"})
-		fmt.Println("==> Waiting for VM to power off...")
+		fmt.Printf("==> Waiting for VM to power off.")
 		for checkVMAlive() {
-			fmt.Println("==> ...")
+			fmt.Printf(".")
 			time.Sleep(2 * time.Second)
 		}
 
 		potDirPath := getVagrantDirPath()
 		xhyveDirPath := potDirPath + "/xhyve"
 		//TODO: Remove all files from ~/.pot/xhyve
-		fmt.Println("==> Cleaning up ~/.pot/xhyve/")
+		fmt.Println("\n==> Cleaning up ~/.pot/xhyve/")
 		// delete file
 		os.Remove(xhyveDirPath + "/block0.img")
 		os.Remove(xhyveDirPath + "/userboot.so")
@@ -360,12 +363,52 @@ func startVagrant(verbose bool) {
 			fmt.Println("ERROR: Startcmd error: ", err)
 		}
 	} else {
-		fmt.Println("==> Starting Xhyve VM...")
+		fmt.Println("==> Starting Xhyve VM")
 		err := runXhyve()
 		if err != nil {
 			log.Fatal("ERROR: Can not start xhyve VM with err: ", err)
+		}	
+		fmt.Printf("==> Machine is starting.")
+		ip := getVMip()
+		for checkVMStarted(ip) {
+			fmt.Printf(".")
+			time.Sleep(2 * time.Second)
 		}
+		fmt.Println("\n==> Machine started.")
 	}
+}
+
+func checkVMStarted(ip string) bool {
+	vagrantDirPath := getVagrantDirPath()
+	sshConfigPath := vagrantDirPath + "/sshConfig"	
+
+	command := "ssh -o ConnectTimeout=1 -F " + sshConfigPath + " potMachine 'ls' > /dev/null && echo $?"
+	cmd := exec.Command("bash", "-c", command)
+        var out bytes.Buffer
+        cmd.Stdout = &out
+	cmd.Run()
+        cmd.Wait()
+
+	result := out.String()
+	
+	if result != "" {
+		return false 
+	}
+
+        return true
+}
+
+func getVMip() (ip string){
+	vagrantDirPath := getVagrantDirPath()
+
+	command := "cat " + vagrantDirPath + "/sshConfig | grep HostName | awk '{printf $2}'"
+	cmd := exec.Command("bash", "-c", command)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Run()
+	cmd.Wait()
+
+	return out.String()
 }
 
 func stopVagrant(verbose bool) {
@@ -391,6 +434,12 @@ func stopVagrant(verbose bool) {
 	} else if VMType == "xhyve" {
 		//Connect to xhyve and poweroff
 		redirectToVagrant([]string{"sudo poweroff"})
+                fmt.Printf("==> Waiting for VM to power off.")
+                for checkVMAlive() {
+                	fmt.Printf(".")
+                        time.Sleep(2 * time.Second)
+                }
+		fmt.Println("\n==> Machine is off")
 	}
 }
 
@@ -415,11 +464,24 @@ func reloadVagrant(verbose bool) {
 		}
 	} else if VMType == "xhyve" {
 		//Stop xhyve VM
-		redirectToVagrant([]string{"poweroff"})
+		redirectToVagrant([]string{"sudo poweroff"})
+                fmt.Printf("==> Waiting for VM to power off.")
+                for checkVMAlive() {
+                	fmt.Printf(".")
+                        time.Sleep(2 * time.Second)
+                }
+		fmt.Println("\n==> Machine is off")
+		fmt.Printf("==> Machine is restarting.")
 		//Start xhyve VM
 		err := runXhyve()
 		if err != nil {
 			log.Fatal("ERROR: Xhyve is not able to start with err: ", err)
 		}
+		ip := getVMip()
+		for checkVMStarted(ip) {
+			fmt.Printf(".")
+			time.Sleep(2 * time.Second)
+		}
+		fmt.Println("\n==> Machine restarted.")
 	}
 }
