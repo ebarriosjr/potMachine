@@ -1,4 +1,4 @@
-package bhyve 
+package bhyve
 
 import (
 	"archive/tar"

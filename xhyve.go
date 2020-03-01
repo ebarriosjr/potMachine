@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/machinebox/progress"
@@ -70,6 +71,9 @@ func initializeXhyve(verbose bool) {
 	//Edit NFS /etc/exports
 	editNFSExports(UUIDString, potDirPath)
 
+	//Restart sudo nfsd restart
+	restartNFSService()
+
 	//Check if runfile exists
 	var runFile string
 	if _, err := os.Stat(xhyveDirPath + "/runFreeBSD.sh"); os.IsNotExist(err) {
@@ -111,6 +115,32 @@ nohup xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERB
 
 	generateSSHConfig(potDirPath, xhyveIP)
 
+	localIP := getLocalIP()
+	fmt.Println("==> Local IP: ", localIP)
+
+	mountNFSonVM(localIP)
+}
+
+// Get preferred outbound ip of this machine
+func getLocalIP() (IP string) {
+	vagrantDirPath := getVagrantDirPath()
+	configSSHFile := vagrantDirPath + "sshConfig"
+
+	termCmd := "ssh -F " + configSSHFile + " potMachine env | grep SSH_CLIENT | awk '{print $1}'"
+
+	cmd := exec.Command("bash", "-c", termCmd)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Run()
+	cmd.Wait()
+	split := strings.Split(out.String(), "=")
+	return split[1]
+}
+
+func mountNFSonVM(localIP string) {
+	homeDir := getUserHome()
+	command := "sudo mount " + localIP + ":" + homeDir + "/.pot /vagrant"
+	redirectToVagrant([]string{command})
 }
 
 func generateSSHConfig(potDirPath string, xhyveIP string) {
@@ -138,6 +168,17 @@ func chmodPrivateKey() {
 	privateKey, _ := os.UserHomeDir()
 	privateKey = privateKey + "/.pot/xhyve/private_key"
 	command := "chmod 600 " + privateKey
+	cmd := exec.Command("bash", "-c", command)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Error starting Xhyve VM with err: ", err)
+	}
+}
+
+func restartNFSService() {
+	command := "sudo nfsd restart"
 	cmd := exec.Command("bash", "-c", command)
 	var out bytes.Buffer
 	cmd.Stdout = &out
