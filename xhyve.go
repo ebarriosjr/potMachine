@@ -116,7 +116,6 @@ nohup xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERB
 	generateSSHConfig(potDirPath, xhyveIP)
 
 	localIP := getLocalIP()
-	fmt.Println("==> Local IP: ", localIP)
 
 	mountNFSonVM(localIP)
 }
@@ -134,7 +133,8 @@ func getLocalIP() (IP string) {
 	cmd.Run()
 	cmd.Wait()
 	split := strings.Split(out.String(), "=")
-	return split[1]
+	finalIP := strings.TrimSuffix(split[1], "\n")
+	return finalIP
 }
 
 func mountNFSonVM(localIP string) {
@@ -186,6 +186,7 @@ func restartNFSService() {
 	if err != nil {
 		fmt.Println("Error starting Xhyve VM with err: ", err)
 	}
+	fmt.Println("==> nfsd restarted")
 }
 
 func runXhyve() error {

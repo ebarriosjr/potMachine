@@ -375,6 +375,8 @@ func startVagrant(verbose bool) {
 			fmt.Printf(".")
 			time.Sleep(2 * time.Second)
 		}
+		fmt.Println("")
+		restartNFSService()
 		localIP := getLocalIP()
 		fmt.Println("==> Local IP: ", localIP)
 
