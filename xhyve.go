@@ -70,6 +70,9 @@ func initializeXhyve(verbose bool) {
 	//Edit NFS /etc/exports
 	editNFSExports(UUIDString, potDirPath)
 
+	//Restart sudo nfsd restart
+	restartNFSService()
+
 	//Check if runfile exists
 	var runFile string
 	if _, err := os.Stat(xhyveDirPath + "/runFreeBSD.sh"); os.IsNotExist(err) {
@@ -138,6 +141,17 @@ func chmodPrivateKey() {
 	privateKey, _ := os.UserHomeDir()
 	privateKey = privateKey + "/.pot/xhyve/private_key"
 	command := "chmod 600 " + privateKey
+	cmd := exec.Command("bash", "-c", command)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Error starting Xhyve VM with err: ", err)
+	}
+}
+
+func restartNFSService() {
+	command := "sudo nfsd restart"
 	cmd := exec.Command("bash", "-c", command)
 	var out bytes.Buffer
 	cmd.Stdout = &out

@@ -295,6 +295,7 @@ func destroyVagrant(verbose bool) {
 
 		fmt.Println("==> Removing NFS share from /etc/exports")
 		removeNFS()
+		restartNFSService()
 	}
 }
 
