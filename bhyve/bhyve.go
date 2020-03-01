@@ -1,4 +1,4 @@
-package main
+package bhyve
 
 import (
 	"archive/tar"
@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/machinebox/progress"
@@ -21,42 +20,56 @@ import (
 )
 
 var (
-	xhyveIP string
+	bhyveIP string
 )
 
-func initializeXhyve(verbose bool) {
-	potDirPath := getVagrantDirPath()
-	xhyveDirPath := potDirPath + "/xhyve"
+//TODO:
+// Prepare host machine:
+// # kldload vmm
+// # ifconfig tap0 create
+// # sysctl net.link.tap.up_on_open=1
+// ==> net.link.tap.up_on_open: 0 -> 1
+// # ifconfig bridge0 create
+// # ifconfig bridge0 addm vtnet0 addm tap0
+// # ifconfig bridge0 up
 
-	if _, err := os.Stat(xhyveDirPath); os.IsNotExist(err) {
-		fmt.Println("==> Creating ~/.pot/xhyve directory")
-		os.Mkdir(xhyveDirPath, 0775)
+// # sh /usr/share/examples/bhyve/vmrun.sh -c 4 -m 1024M -t tap0 -d ~/.pot/bhyve/block0.img potMachine
+// /usr/share/examples/bhyve/vmrun.sh -c 2 -m 1024 -d /root/block0.img potMachine
+// # bhyvectl --destroy --vm=potMachine
+
+func initializeBhyve(verbose bool) {
+	potDirPath := getVagrantDirPath()
+	bhyveDirPath := potDirPath + "/bhyve"
+
+	if _, err := os.Stat(bhyveDirPath); os.IsNotExist(err) {
+		fmt.Println("==> Creating ~/.pot/bhyve directory")
+		os.Mkdir(bhyveDirPath, 0775)
 	}
 
-	//Download from github respo xhyve.tar.zg -> ~/.pot/xhyve
-	fileURL := "https://app.vagrantup.com/ebarriosjr/boxes/FreeBSD12.1-zfs/versions/0.0.1/providers/xhyve.box"
-	tarPath := xhyveDirPath + "/potMachine.tar.gz"
+	//Download from github respo bhyve.tar.zg -> ~/.pot/bhyve
+	fileURL := "https://app.vagrantup.com/ebarriosjr/boxes/FreeBSD12.1-zfs/versions/0.0.1/providers/bhyve.box"
+	tarPath := bhyveDirPath + "/potMachine.tar.gz"
 
-	fmt.Println("==> Checking if tar file already exists on ~/.pot/xhyve/potMachine.tar.gz")
+	fmt.Println("==> Checking if tar file already exists on ~/.pot/bhyve/potMachine.tar.gz")
 	if _, err := os.Stat(tarPath); os.IsNotExist(err) {
-		fmt.Println("==> Downloading tar file to ~/.pot/xhyve/potMachine.tar.gz")
+		fmt.Println("==> Downloading tar file to ~/.pot/bhyve/potMachine.tar.gz")
 		if err := downloadFile(tarPath, fileURL); err != nil {
 			fmt.Println("Error downloading tar file from vagrant cloud with err: ", err)
 			log.Fatal()
 		}
 	}
 
-	fmt.Println("==> Extracting tar file ~/.pot/xhyve/potMachine.tar.gz to ~/.pot/xhyve/")
-	//untar potMachine.tar.gz into ~/.pot/xhyve
+	fmt.Println("==> Extracting tar file ~/.pot/bhyve/potMachine.tar.gz to ~/.pot/bhyve/")
+	//untar potMachine.tar.gz into ~/.pot/bhyve
 	r, err := os.Open(tarPath)
 	if err != nil {
 		fmt.Println("Error openning tar file with err: ", err)
 	}
-	extractTarGz(r, xhyveDirPath+"/")
+	extractTarGz(r, bhyveDirPath+"/")
 
-	fmt.Println("==> Cleaning up ~/.pot/xhyve/")
+	fmt.Println("==> Cleaning up ~/.pot/bhyve/")
 	// delete file
-	os.Remove(xhyveDirPath + "/metadata.json")
+	os.Remove(bhyveDirPath + "/metadata.json")
 
 	fmt.Println("==> Enabeling nfs mountpoint")
 	//Enable NFS on mac sudo nfsd enable
@@ -71,17 +84,14 @@ func initializeXhyve(verbose bool) {
 	//Edit NFS /etc/exports
 	editNFSExports(UUIDString, potDirPath)
 
-	//Restart sudo nfsd restart
-	restartNFSService()
-
 	//Check if runfile exists
 	var runFile string
-	if _, err := os.Stat(xhyveDirPath + "/runFreeBSD.sh"); os.IsNotExist(err) {
+	if _, err := os.Stat(bhyveDirPath + "/runFreeBSD.sh"); os.IsNotExist(err) {
 		//Create run file
 		runFile = `#/bin/sh
 UUID="-U efc58796-25ec-4003-b216-f20be8100685"
-USERBOOT="` + potDirPath + `/xhyve/userboot.so"
-IMG="` + potDirPath + `/xhyve/block0.img"
+USERBOOT="` + potDirPath + `/bhyve/userboot.so"
+IMG="` + potDirPath + `/bhyve/block0.img"
 KERNELENV=""
 
 MEM="-m 4G"
@@ -92,73 +102,47 @@ IMG_HDD="-s 4:0,virtio-blk,$IMG"
 LPC_DEV="-l com1,stdio"
 ACPI="-A"
 
-nohup xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV" </dev/null >/dev/null 2>&1 &
+nohup bhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERBOOT,$IMG,"$KERNELENV" </dev/null >/dev/null 2>&1 &
 `
-		// Write runfile to ~/.pot/xhyve/runFreeBSD.sh
-		xhyveRunFilePath := potDirPath + "/xhyve/runFreeBSD.sh"
+		// Write runfile to ~/.pot/bhyve/runFreeBSD.sh
+		bhyveRunFilePath := potDirPath + "/bhyve/runFreeBSD.sh"
 
-		err = ioutil.WriteFile(xhyveRunFilePath, []byte(runFile), 0775)
+		err = ioutil.WriteFile(bhyveRunFilePath, []byte(runFile), 0775)
 		if err != nil {
 			fmt.Println("ERROR: Error writting file to disk with err: \n", err)
 			return
 		}
 	}
 
-	//Initializa xhyve vm
-	err = runXhyve()
+	//Initializa bhyve vm
+	err = runBhyve()
 	if err != nil {
-		fmt.Println("Error creating xhyve vm with err: ", err)
+		fmt.Println("Error creating bhyve vm with err: ", err)
 		return
 	}
 
 	netcat()
 
-	generateSSHConfig(potDirPath, xhyveIP)
+	generateSSHConfig(potDirPath, bhyveIP)
 
-	localIP := getLocalIP()
-	fmt.Println("==> Local IP: ", localIP)
-
-	mountNFSonVM(localIP)
 }
 
-// Get preferred outbound ip of this machine
-func getLocalIP() (IP string) {
-	vagrantDirPath := getVagrantDirPath()
-	configSSHFile := vagrantDirPath + "sshConfig"
-
-	termCmd := "ssh -F " + configSSHFile + " potMachine env | grep SSH_CLIENT | awk '{print $1}'"
-
-	cmd := exec.Command("bash", "-c", termCmd)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Run()
-	cmd.Wait()
-	split := strings.Split(out.String(), "=")
-	return split[1]
-}
-
-func mountNFSonVM(localIP string) {
-	homeDir := getUserHome()
-	command := "sudo mount " + localIP + ":" + homeDir + "/.pot /vagrant"
-	redirectToVagrant([]string{command})
-}
-
-func generateSSHConfig(potDirPath string, xhyveIP string) {
+func generateSSHConfig(potDirPath string, bhyveIP string) {
 	//generate sshConfig file
 	sshConfig := `Host potMachine
-		HostName ` + xhyveIP + `
+		HostName ` + bhyveIP + `
 		User vagrant
 		Port 22
 		UserKnownHostsFile /dev/null
 		StrictHostKeyChecking no
 		PasswordAuthentication no
-		IdentityFile ~/.pot/xhyve/private_key
+		IdentityFile ~/.pot/bhyve/private_key
 		IdentitiesOnly yes
 		LogLevel FATAL
 	  `
-	xhyvesshConfigFilePath := potDirPath + "/sshConfig"
+	bhyvesshConfigFilePath := potDirPath + "/sshConfig"
 
-	err := ioutil.WriteFile(xhyvesshConfigFilePath, []byte(sshConfig), 0775)
+	err := ioutil.WriteFile(bhyvesshConfigFilePath, []byte(sshConfig), 0775)
 	if err != nil {
 		log.Fatal("ERROR: Error writting file to disk with err: \n", err)
 	}
@@ -166,38 +150,27 @@ func generateSSHConfig(potDirPath string, xhyveIP string) {
 
 func chmodPrivateKey() {
 	privateKey, _ := os.UserHomeDir()
-	privateKey = privateKey + "/.pot/xhyve/private_key"
+	privateKey = privateKey + "/.pot/bhyve/private_key"
 	command := "chmod 600 " + privateKey
 	cmd := exec.Command("bash", "-c", command)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println("Error starting Xhyve VM with err: ", err)
+		fmt.Println("Error starting bhyve VM with err: ", err)
 	}
 }
 
-func restartNFSService() {
-	command := "sudo nfsd restart"
-	cmd := exec.Command("bash", "-c", command)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		fmt.Println("Error starting Xhyve VM with err: ", err)
-	}
-}
-
-func runXhyve() error {
+func runBhyve() error {
 	potDirPath := getVagrantDirPath()
-	xhyveDirPath := potDirPath + "/xhyve"
-	termCmd := `sudo ` + xhyveDirPath + `/runFreeBSD.sh`
+	bhyveDirPath := potDirPath + "/bhyve"
+	termCmd := `sudo ` + bhyveDirPath + `/runFreeBSD.sh`
 	cmd := exec.Command("bash", "-c", termCmd)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println("Error starting Xhyve VM with err: ", err)
+		fmt.Println("Error starting bhyve VM with err: ", err)
 		return err
 	}
 	return nil
@@ -205,9 +178,9 @@ func runXhyve() error {
 
 func editNFSExports(UUID string, potDir string) {
 	termCmd := `sudo tee -a /etc/exports << 'EOF'
-# POTMACHINE-Xhyve-Begin
+# POTMACHINE-bhyve-Begin
 ` + potDir + ` -alldirs -mapall=` + UUID + `
-# POTMACHINE-Xhyve-END
+# POTMACHINE-bhyve-END
 EOF`
 	cmd := exec.Command("bash", "-c", termCmd)
 	var out bytes.Buffer
@@ -245,8 +218,8 @@ func netcat() {
 		log.Fatal(err)
 	}
 	cmd.Wait()
-	xhyveIP = out.String()
-	fmt.Println("==> Machine started with ip: ", xhyveIP)
+	bhyveIP = out.String()
+	fmt.Println("==> Machine started with ip: ", bhyveIP)
 }
 
 func downloadFile(filepath string, url string) error {
@@ -287,7 +260,7 @@ func downloadFile(filepath string, url string) error {
 
 }
 
-func extractTarGz(gzipStream io.Reader, xhyveDirPath string) {
+func extractTarGz(gzipStream io.Reader, bhyveDirPath string) {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		log.Fatal("ExtractTarGz: NewReader failed")
@@ -311,11 +284,11 @@ func extractTarGz(gzipStream io.Reader, xhyveDirPath string) {
 			if header.Name == "./" {
 				break
 			}
-			if err := os.Mkdir(xhyveDirPath+header.Name, 0755); err != nil {
+			if err := os.Mkdir(bhyveDirPath+header.Name, 0755); err != nil {
 				log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
 			}
 		case tar.TypeReg:
-			outFile, err := os.Create(xhyveDirPath + header.Name)
+			outFile, err := os.Create(bhyveDirPath + header.Name)
 			if err != nil {
 				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
 			}
