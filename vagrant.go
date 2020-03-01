@@ -368,38 +368,42 @@ func startVagrant(verbose bool) {
 		err := runXhyve()
 		if err != nil {
 			log.Fatal("ERROR: Can not start xhyve VM with err: ", err)
-		}	
+		}
 		fmt.Printf("==> Machine is starting.")
 		ip := getVMip()
 		for checkVMStarted(ip) {
 			fmt.Printf(".")
 			time.Sleep(2 * time.Second)
 		}
+		localIP := getLocalIP()
+		fmt.Println("==> Local IP: ", localIP)
+
+		mountNFSonVM(localIP)
 		fmt.Println("\n==> Machine started.")
 	}
 }
 
 func checkVMStarted(ip string) bool {
 	vagrantDirPath := getVagrantDirPath()
-	sshConfigPath := vagrantDirPath + "/sshConfig"	
+	sshConfigPath := vagrantDirPath + "/sshConfig"
 
 	command := "ssh -o ConnectTimeout=1 -F " + sshConfigPath + " potMachine 'ls' > /dev/null && echo $?"
 	cmd := exec.Command("bash", "-c", command)
-        var out bytes.Buffer
-        cmd.Stdout = &out
+	var out bytes.Buffer
+	cmd.Stdout = &out
 	cmd.Run()
-        cmd.Wait()
+	cmd.Wait()
 
 	result := out.String()
-	
+
 	if result != "" {
-		return false 
+		return false
 	}
 
-        return true
+	return true
 }
 
-func getVMip() (ip string){
+func getVMip() (ip string) {
 	vagrantDirPath := getVagrantDirPath()
 
 	command := "cat " + vagrantDirPath + "/sshConfig | grep HostName | awk '{printf $2}'"
@@ -435,11 +439,11 @@ func stopVagrant(verbose bool) {
 	} else if VMType == "xhyve" {
 		//Connect to xhyve and poweroff
 		redirectToVagrant([]string{"sudo poweroff"})
-                fmt.Printf("==> Waiting for VM to power off.")
-                for checkVMAlive() {
-                	fmt.Printf(".")
-                        time.Sleep(2 * time.Second)
-                }
+		fmt.Printf("==> Waiting for VM to power off.")
+		for checkVMAlive() {
+			fmt.Printf(".")
+			time.Sleep(2 * time.Second)
+		}
 		fmt.Println("\n==> Machine is off")
 	}
 }
@@ -466,11 +470,11 @@ func reloadVagrant(verbose bool) {
 	} else if VMType == "xhyve" {
 		//Stop xhyve VM
 		redirectToVagrant([]string{"sudo poweroff"})
-                fmt.Printf("==> Waiting for VM to power off.")
-                for checkVMAlive() {
-                	fmt.Printf(".")
-                        time.Sleep(2 * time.Second)
-                }
+		fmt.Printf("==> Waiting for VM to power off.")
+		for checkVMAlive() {
+			fmt.Printf(".")
+			time.Sleep(2 * time.Second)
+		}
 		fmt.Println("\n==> Machine is off")
 		fmt.Printf("==> Machine is restarting.")
 		//Start xhyve VM
