@@ -146,16 +146,16 @@ func mountNFSonVM(localIP string) {
 func generateSSHConfig(potDirPath string, xhyveIP string) {
 	//generate sshConfig file
 	sshConfig := `Host potMachine
-		HostName ` + xhyveIP + `
-		User vagrant
-		Port 22
-		UserKnownHostsFile /dev/null
-		StrictHostKeyChecking no
-		PasswordAuthentication no
-		IdentityFile ~/.pot/xhyve/private_key
-		IdentitiesOnly yes
-		LogLevel FATAL
-	  `
+	HostName ` + xhyveIP + `
+	User vagrant
+	Port 22
+	UserKnownHostsFile /dev/null
+	StrictHostKeyChecking no
+	PasswordAuthentication no
+	IdentityFile ~/.pot/xhyve/private_key
+	IdentitiesOnly yes
+	LogLevel FATAL
+`
 	xhyvesshConfigFilePath := potDirPath + "/sshConfig"
 
 	err := ioutil.WriteFile(xhyvesshConfigFilePath, []byte(sshConfig), 0775)

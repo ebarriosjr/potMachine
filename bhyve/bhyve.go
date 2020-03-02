@@ -33,8 +33,7 @@ var (
 // # ifconfig bridge0 addm igb0 addm tap0
 // # ifconfig bridge0 up
 
-// # sh /usr/share/examples/bhyve/vmrun.sh -c 4 -m 1024M -t tap0 -d ~/.pot/bhyve/block0.img potMachine
-
+// /usr/share/examples/bhyve/vmrun.sh -c 2 -m 1024 -d /root/block0.img potMachine
 // # bhyvectl --destroy --vm=potMachine
 
 func initializeBhyve(verbose bool) {
