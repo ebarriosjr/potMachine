@@ -59,6 +59,7 @@ func initializeXhyve(verbose bool) {
 	os.Remove(xhyveDirPath + "/metadata.json")
 
 	fmt.Println("==> Enabeling nfs mountpoint")
+
 	//Enable NFS on mac sudo nfsd enable
 	enableNFS()
 
@@ -70,9 +71,6 @@ func initializeXhyve(verbose bool) {
 
 	//Edit NFS /etc/exports
 	editNFSExports(UUIDString, potDirPath)
-
-	//Restart sudo nfsd restart
-	restartNFSService()
 
 	//Check if runfile exists
 	var runFile string
@@ -117,6 +115,9 @@ nohup xhyve $ACPI $MEM $SMP $PCI_DEV $LPC_DEV $NET $IMG_HDD $UUID -f fbsd,$USERB
 
 	localIP := getLocalIP()
 	fmt.Println("==> Local IP: ", localIP)
+
+	//Restart sudo nfsd restart
+	restartNFSService()
 
 	mountNFSonVM(localIP)
 }
@@ -178,6 +179,7 @@ func chmodPrivateKey() {
 }
 
 func restartNFSService() {
+
 	command := "sudo nfsd restart"
 	cmd := exec.Command("bash", "-c", command)
 	var out bytes.Buffer
@@ -186,6 +188,8 @@ func restartNFSService() {
 	if err != nil {
 		fmt.Println("Error starting Xhyve VM with err: ", err)
 	}
+	fmt.Println("==> nfsd restarted")
+	cmd.Wait()
 }
 
 func runXhyve() error {
@@ -221,6 +225,7 @@ EOF`
 }
 
 func enableNFS() {
+
 	termCmd := "sudo nfsd enable"
 	cmd := exec.Command("bash", "-c", termCmd)
 	var out bytes.Buffer
