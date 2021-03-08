@@ -74,7 +74,7 @@ Options:
 
 # Potfile #
 
-Potfile is an configuration file si,ilar to Dockerfile. With this file a build of a pot can be triggered.
+Potfile is an configuration file similar to Dockerfile. With this file a build of a pot can be triggered.
 
 In order to create a Pot with a Potfile the command `pot build .` need to be executed. You can also tag your build to export the pot in one command. 
 
